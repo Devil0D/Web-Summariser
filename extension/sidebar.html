@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Websears</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── reset & base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0f1117;
+      --surface:     #181b25;
+      --surface2:    #1f2333;
+      --border:      #2a2f45;
+      --accent:      #4f7cff;
+      --accent-dim:  #2a3f7a;
+      --success:     #3ecf8e;
+      --warn:        #f5a623;
+      --error:       #e05252;
+      --text:        #e8eaf0;
+      --text-dim:    #7b8099;
+      --text-muted:  #454c66;
+      --radius:      10px;
+      --font-display: 'DM Serif Display', Georgia, serif;
+      --font-mono:    'DM Mono', 'Courier New', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+      overflow: hidden;
+    }
+
+    /* ── layout ───────────────────────────────────────────────────────────── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ── header ───────────────────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-family: var(--font-display);
+      font-size: 18px;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .logo span { color: var(--accent); }
+
+    .header-actions { display: flex; gap: 6px; align-items: center; }
+
+    .icon-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 5px 8px;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+    .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── status bar ───────────────────────────────────────────────────────── */
+    #status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--error);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .status-dot.ok { background: var(--success); }
+    .status-dot.checking { background: var(--warn); animation: pulse 1s infinite; }
+
+    @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.4 } }
+
+    #page-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    /* ── tabs ─────────────────────────────────────────────────────────────── */
+    #tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 10px 4px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .tab:hover  { color: var(--text-dim); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── panels ───────────────────────────────────────────────────────────── */
+    .panel { display: none; flex: 1; overflow-y: auto; padding: 14px 16px; }
+    .panel.active { display: flex; flex-direction: column; gap: 12px; }
+
+    /* ── page info card ───────────────────────────────────────────────────── */
+    #page-info-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+    }
+
+    .page-info-title {
+      font-family: var(--font-display);
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 4px;
+      line-height: 1.3;
+    }
+
+    .page-info-url {
+      font-size: 10px;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .page-info-meta {
+      margin-top: 8px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* ── model selector ───────────────────────────────────────────────────── */
+    .control-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    select, input[type="text"], input[type="password"], textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 8px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    select:focus, input:focus, textarea:focus { border-color: var(--accent); }
+    select option { background: var(--surface2); }
+
+    /* ── buttons ──────────────────────────────────────────────────────────── */
+    .btn {
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 9px 16px;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      justify-content: center;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      font-weight: 500;
+    }
+    .btn-primary:hover  { background: #6b91ff; }
+    .btn-primary:active { background: #3d63e0; }
+    .btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .btn-ghost {
+      background: var(--surface2);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-full { width: 100%; }
+
+    /* ── loading spinner ──────────────────────────────────────────────────── */
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    .spinning .spinner { display: block; }
+    .spinning .btn-label { display: none; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── result box ───────────────────────────────────────────────────────── */
+    #result-container {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+    }
+    #result-container.visible { display: flex; }
+
+    .result-section {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .result-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .result-section-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+    }
+
+    .result-section-body {
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--text);
+    }
+
+    .copy-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: color 0.15s;
+    }
+    .copy-btn:hover { color: var(--accent); }
+
+    /* ── error box ────────────────────────────────────────────────────────── */
+    .error-box {
+      background: rgba(224, 82, 82, 0.1);
+      border: 1px solid var(--error);
+      border-radius: var(--radius);
+      padding: 12px;
+      font-size: 12px;
+      color: #f08080;
+      display: none;
+    }
+    .error-box.visible { display: block; }
+
+    /* ── file upload ──────────────────────────────────────────────────────── */
+    #drop-zone {
+      border: 1.5px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    #drop-zone:hover, #drop-zone.drag-over {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(79, 124, 255, 0.05);
+    }
+    #drop-zone .drop-icon { font-size: 22px; margin-bottom: 6px; }
+
+    #file-preview {
+      display: none;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      font-size: 11px;
+      color: var(--text-dim);
+      align-items: center;
+      justify-content: space-between;
+    }
+    #file-preview.visible { display: flex; }
+
+    /* ── settings panel ───────────────────────────────────────────────────── */
+    .settings-group {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+
+    .settings-group-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .settings-row {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 12px;
+    }
+    .settings-row:last-child { margin-bottom: 0; }
+
+    .key-input-wrap {
+      position: relative;
+    }
+    .key-input-wrap input { padding-right: 68px; }
+    .key-save-btn {
+      position: absolute;
+      right: 4px; top: 50%;
+      transform: translateY(-50%);
+      background: var(--accent-dim);
+      border: none;
+      border-radius: 4px;
+      color: var(--accent);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 4px 8px;
+      transition: background 0.15s;
+    }
+    .key-save-btn:hover { background: var(--accent); color: #fff; }
+
+    .saved-badge {
+      display: none;
+      font-size: 10px;
+      color: var(--success);
+    }
+    .saved-badge.visible { display: inline; }
+
+    /* ── server url row ───────────────────────────────────────────────────── */
+    .inline-row {
+      display: flex;
+      gap: 6px;
+    }
+    .inline-row input { flex: 1; }
+
+    /* scrollbar ─────────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  </style>
+</head>
+
+<body>
+<div id="app">
+
+  <!-- header -->
+  <header>
+    <div class="logo">web<span>sears</span></div>
+    <div class="header-actions">
+      <button class="icon-btn" id="refresh-btn" title="Re-grab page content">↺</button>
+      <button class="icon-btn" id="settings-shortcut" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <!-- status bar -->
+  <div id="status-bar">
+    <div class="status-dot checking" id="server-dot"></div>
+    <span id="server-status-text">Checking local server…</span>
+    <span id="page-title" style="margin-left:auto"></span>
+  </div>
+
+  <!-- tabs -->
+  <div id="tabs">
+    <div class="tab active" data-tab="summarize">Summarize</div>
+    <div class="tab" data-tab="upload">Upload</div>
+    <div class="tab" data-tab="settings">Settings</div>
+  </div>
+
+  <!-- ── SUMMARIZE panel ── -->
+  <div class="panel active" id="panel-summarize">
+
+    <!-- page info -->
+    <div id="page-info-card">
+      <div class="page-info-title" id="pi-title">Waiting for page…</div>
+      <div class="page-info-url"  id="pi-url"></div>
+      <div class="page-info-meta" id="pi-meta"></div>
+    </div>
+
+    <!-- model + provider row -->
+    <div>
+      <label>Model / Provider</label>
+      <select id="model-select">
+        <optgroup label="🖥 Local Models">
+          <option value="local:combined">Combined (BART + T5 + LexRank)</option>
+          <option value="local:bart">BART</option>
+          <option value="local:t5">T5</option>
+          <option value="local:lexrank">LexRank (extractive)</option>
+        </optgroup>
+        <optgroup label="☁ Cloud APIs" id="cloud-group">
+          <option value="cloud:openai" id="opt-openai" disabled>OpenAI GPT-4o  (add key →)</option>
+          <option value="cloud:gemini" id="opt-gemini" disabled>Google Gemini  (add key →)</option>
+          <option value="cloud:anthropic" id="opt-anthropic" disabled>Anthropic Claude  (add key →)</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <!-- summarize button -->
+    <button class="btn btn-primary btn-full" id="summarize-btn">
+      <div class="spinner"></div>
+      <span class="btn-label">✦ Summarize this page</span>
+    </button>
+
+    <!-- error -->
+    <div class="error-box" id="error-box"></div>
+
+    <!-- results -->
+    <div id="result-container">
+      <!-- final summary always shown -->
+      <div class="result-section" id="section-final">
+        <div class="result-section-header">
+          <span class="result-section-title">✦ Summary</span>
+          <button class="copy-btn" data-target="text-final">copy</button>
+        </div>
+        <div class="result-section-body" id="text-final"></div>
+      </div>
+
+      <!-- bart breakdown (hidden unless combined local) -->
+      <div class="result-section" id="section-bart" style="display:none">
+        <div class="result-section-header">
+          <span class="result-section-title">BART</span>
+          <button class="copy-btn" data-target="text-bart">copy</button>
+        </div>
+        <div class="result-section-body" id="text-bart"></div>
+      </div>
+
+      <div class="result-section" id="section-t5" style="display:none">
+        <div class="result-section-header">
+          <span class="result-section-title">T5</span>
+          <button class="copy-btn" data-target="text-t5">copy</button>
+        </div>
+        <div class="result-section-body" id="text-t5"></div>
+      </div>
+
+      <div class="result-section" id="section-lexrank" style="display:none">
+        <div class="result-section-header">
+          <span class="result-section-title">LexRank</span>
+          <button class="copy-btn" data-target="text-lexrank">copy</button>
+        </div>
+        <div class="result-section-body" id="text-lexrank"></div>
+      </div>
+    </div>
+
+  </div><!-- /panel-summarize -->
+
+  <!-- ── UPLOAD panel ── -->
+  <div class="panel" id="panel-upload">
+
+    <div>
+      <label>Model / Provider</label>
+      <select id="upload-model-select">
+        <option value="local:combined">Combined (BART + T5 + LexRank)</option>
+        <option value="local:bart">BART</option>
+        <option value="local:t5">T5</option>
+        <option value="local:lexrank">LexRank</option>
+        <option value="cloud:openai"   id="uopt-openai"    disabled>OpenAI GPT-4o  (add key →)</option>
+        <option value="cloud:gemini"   id="uopt-gemini"    disabled>Google Gemini  (add key →)</option>
+        <option value="cloud:anthropic" id="uopt-anthropic" disabled>Anthropic Claude  (add key →)</option>
+      </select>
+    </div>
+
+    <div id="drop-zone">
+      <div class="drop-icon">📄</div>
+      <div>Drop a .txt or .pdf here</div>
+      <div style="margin-top:4px;font-size:10px;color:var(--text-muted)">or click to browse</div>
+      <input type="file" id="file-input" accept=".txt,.pdf" style="display:none" />
+    </div>
+
+    <div id="file-preview">
+      <span id="file-name-display"></span>
+      <button class="copy-btn" id="remove-file-btn">✕ remove</button>
+    </div>
+
+    <button class="btn btn-primary btn-full" id="upload-summarize-btn" disabled>
+      <div class="spinner"></div>
+      <span class="btn-label">✦ Summarize document</span>
+    </button>
+
+    <div class="error-box" id="upload-error-box"></div>
+
+    <div id="upload-result-container" style="display:none">
+      <div class="result-section">
+        <div class="result-section-header">
+          <span class="result-section-title">✦ Summary</span>
+          <button class="copy-btn" data-target="upload-text-final">copy</button>
+        </div>
+        <div class="result-section-body" id="upload-text-final"></div>
+      </div>
+    </div>
+
+  </div><!-- /panel-upload -->
+
+  <!-- ── SETTINGS panel ── -->
+  <div class="panel" id="panel-settings">
+
+    <!-- local server -->
+    <div class="settings-group">
+      <div class="settings-group-title">Local Server</div>
+      <div class="settings-row">
+        <label>Server URL</label>
+        <div class="inline-row">
+          <input type="text" id="server-url-input" value="http://localhost:5001" />
+          <button class="btn btn-ghost" id="test-server-btn" style="white-space:nowrap;padding:8px 12px">Test</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- api keys -->
+    <div class="settings-group">
+      <div class="settings-group-title">Cloud API Keys</div>
+
+      <div class="settings-row">
+        <label>OpenAI <span class="saved-badge" id="badge-openai">✓ saved</span></label>
+        <div class="key-input-wrap">
+          <input type="password" id="key-openai" placeholder="sk-…" />
+          <button class="key-save-btn" data-key="openai">Save</button>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <label>Google Gemini <span class="saved-badge" id="badge-gemini">✓ saved</span></label>
+        <div class="key-input-wrap">
+          <input type="password" id="key-gemini" placeholder="AIza…" />
+          <button class="key-save-btn" data-key="gemini">Save</button>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <label>Anthropic Claude <span class="saved-badge" id="badge-anthropic">✓ saved</span></label>
+        <div class="key-input-wrap">
+          <input type="password" id="key-anthropic" placeholder="sk-ant-…" />
+          <button class="key-save-btn" data-key="anthropic">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-group-title">Data</div>
+      <button class="btn btn-ghost btn-full" id="clear-keys-btn">Clear all saved keys</button>
+    </div>
+
+  </div><!-- /panel-settings -->
+
+</div><!-- /app -->
+
+<script src="sidebar.js"></script>
+</body>
+</html>

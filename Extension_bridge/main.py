@@ -4,6 +4,13 @@ Websears Summary Service  —  FastAPI edition
 Drop-in replacement for the original Flask main.py.
 Runs on port 5001 — your Express server (chats.ts) needs NO changes.
 
+New features vs the old Flask version:
+  • /summarize/selective  — choose which model(s) to run
+  • /summarize/url        — fetch a URL and summarise it (for the extension)
+  • /models               — model list for the extension dropdown
+  • /health               — ping endpoint for the extension status indicator
+  • CORS open for Chrome extension + localhost:5173
+
 Start with:
     uvicorn main:app --reload --port 5001
 """
@@ -11,25 +18,27 @@ Start with:
 from fastapi import FastAPI, Form, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional
 import io, logging, warnings
-import pypdf  # already in your project — no new install needed
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.INFO)
 
+# ── import your existing model modules ────────────────────────────────────────
 from bart import bart_summary
 from T5 import t5_summary
 from extractive_summary import extractive_summary
 
+# ── app ───────────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="Websears Summary Service",
     description="BART · T5 · LexRank summarisation API",
-    version="2.1.0",
+    version="2.0.0",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],   # Chrome extension + your dev servers
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -45,22 +54,12 @@ def _truncate(text: str) -> str:
     return text[:MAX_CHARS]
 
 def _extract_pdf_text(data: bytes) -> str:
-    """Extract text from PDF bytes using pypdf (already in your requirements)."""
     try:
-        reader = pypdf.PdfReader(io.BytesIO(data))
-        pages_text = []
-        for page in reader.pages:
-            text = page.extract_text()
-            if text:
-                pages_text.append(text)
-        result = "\n".join(pages_text)
-        if not result.strip():
-            raise HTTPException(400, "PDF appears to be scanned/image-only — no text could be extracted.")
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(500, f"Failed to read PDF: {e}")
+        import pypdf, io as _io
+        reader = pypdf.PdfReader(_io.BytesIO(data))
+        return "\n".join(p.extract_text() or "" for p in reader.pages)
+    except ImportError:
+        raise HTTPException(501, "pypdf not installed — run: pip install pypdf")
 
 def _extract_txt_text(data: bytes) -> str:
     return data.decode("utf-8", errors="ignore")
@@ -75,28 +74,34 @@ def _build_combined(text: str):
     return bart_out, t5_out, lex_out, golden
 
 
-# ── routes ────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+#  ROUTES
+# ══════════════════════════════════════════════════════════════════════════════
+
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "Websears Summary Service v2.1"}
+    return {"status": "ok", "service": "Websears Summary Service v2"}
+
 
 @app.get("/health")
 def health():
     return {"status": "healthy"}
 
+
 @app.get("/models")
 def list_models():
+    """Extension calls this to build the model-selector dropdown."""
     return {
         "models": [
-            {"id": "combined", "name": "Combined (all 3)", "type": "mixed",       "local": True},
-            {"id": "bart",     "name": "BART",             "type": "abstractive", "local": True},
-            {"id": "t5",       "name": "T5",               "type": "abstractive", "local": True},
-            {"id": "lexrank",  "name": "LexRank",          "type": "extractive",  "local": True},
+            {"id": "combined",  "name": "Combined (all 3)",  "type": "mixed",       "local": True},
+            {"id": "bart",      "name": "BART",              "type": "abstractive", "local": True},
+            {"id": "t5",        "name": "T5",                "type": "abstractive", "local": True},
+            {"id": "lexrank",   "name": "LexRank",           "type": "extractive",  "local": True},
         ]
     }
 
 
-# ── /summarize  (original endpoint — unchanged for Express chats.ts) ──────────
+# ── /summarize  (original endpoint — multipart form, unchanged for Express) ──
 @app.post("/summarize")
 async def summarize(
     text: str        = Form(default=""),
@@ -110,15 +115,12 @@ async def summarize(
 
     if file and file.filename:
         raw = await file.read()
-        ct  = (file.content_type or "").lower()
-        fn  = (file.filename or "").lower()
-
-        if "pdf" in ct or fn.endswith(".pdf"):
+        if file.content_type == "application/pdf" or file.filename.endswith(".pdf"):
             text_to_summarize = _extract_pdf_text(raw)
-        elif "text" in ct or fn.endswith(".txt"):
+        elif "text" in (file.content_type or "") or file.filename.endswith(".txt"):
             text_to_summarize = _extract_txt_text(raw)
         else:
-            raise HTTPException(400, "Unsupported file type. Upload a .pdf or .txt file.")
+            raise HTTPException(400, "Invalid file type. Please upload a PDF or .txt file.")
     else:
         text_to_summarize = text
 
@@ -141,13 +143,18 @@ async def summarize(
     }
 
 
-# ── /summarize/selective  (extension model picker) ────────────────────────────
+# ── /summarize/selective  (new — for the extension model picker) ──────────────
 class SelectiveRequest(BaseModel):
     text:  str
-    model: str = "combined"
+    model: str = "combined"   # "bart" | "t5" | "lexrank" | "combined"
+
 
 @app.post("/summarize/selective")
 def summarize_selective(req: SelectiveRequest):
+    """
+    Called by the Chrome extension when the user picks a specific model.
+    Returns a single `summary` string plus per-model outputs when combined.
+    """
     if not req.text.strip():
         raise HTTPException(400, "text is empty")
 
@@ -157,10 +164,13 @@ def summarize_selective(req: SelectiveRequest):
     try:
         if model == "bart":
             return {"summary": bart_summary(text), "model_used": "bart"}
+
         elif model == "t5":
             return {"summary": t5_summary(text), "model_used": "t5"}
+
         elif model == "lexrank":
             return {"summary": extractive_summary(text), "model_used": "lexrank"}
+
         elif model == "combined":
             bart_out, t5_out, lex_out, golden = _build_combined(text)
             return {
@@ -172,6 +182,7 @@ def summarize_selective(req: SelectiveRequest):
             }
         else:
             raise HTTPException(400, f"Unknown model '{model}'. Use: bart, t5, lexrank, combined")
+
     except HTTPException:
         raise
     except Exception as e:
@@ -179,18 +190,27 @@ def summarize_selective(req: SelectiveRequest):
         raise HTTPException(500, str(e))
 
 
-# ── /summarize/url  (extension sends extracted page text here) ────────────────
+# ── /summarize/url  (new — extension grabs page text and sends it here) ───────
 class UrlRequest(BaseModel):
-    text:  str
-    url:   str
-    title: str = ""
+    text:  str          # page text extracted by the content script
+    url:   str          # original URL (for metadata only)
+    title: str = ""     # page title
     model: str = "combined"
+
 
 @app.post("/summarize/url")
 def summarize_url(req: UrlRequest):
+    """
+    The extension's content script strips the page to plain text and POSTs it.
+    Returns same shape as /summarize/selective.
+    """
     if not req.text.strip():
         raise HTTPException(400, "No page text provided")
-    return summarize_selective(SelectiveRequest(text=req.text, model=req.model))
+
+    # Reuse selective logic
+    return summarize_selective(
+        SelectiveRequest(text=req.text, model=req.model)
+    )
 
 
 if __name__ == "__main__":
