@@ -1,0 +1,20 @@
+# ── FastAPI server ────────────────────────────────────────────────────────────
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9     # needed for file uploads
+
+# ── your existing ML models ───────────────────────────────────────────────────
+transformers>=4.40.0
+torch>=2.0.0                # or torchvision / torchaudio if you need them
+sentencepiece               # T5 tokenizer
+accelerate                  # optional: speeds up transformers on CPU
+
+# ── LexRank (extractive summarization) ───────────────────────────────────────
+sumy==0.11.0
+nltk                        # sumy dependency — run nltk.download('punkt') once
+
+# ── file handling ─────────────────────────────────────────────────────────────
+pdfplumber==0.11.0          # PDF text extraction
+
+# ── dev helpers (optional) ────────────────────────────────────────────────────
+httpx                       # for running test_api.py
