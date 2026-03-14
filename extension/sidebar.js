@@ -1,12 +1,19 @@
 // sidebar.js
 
 const ALL_PROVIDERS = ["openai","gemini","anthropic","mistral","groq","cohere"];
+const GEMINI_MODEL_CANDIDATES = [
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-8b",
+  "gemini-1.5-pro",
+];
 
 const state = {
   pageText:    "",
   pageTitle:   "",
   pageUrl:     "",
   serverUrl:   "http://localhost:5001",
+  ollamaUrl:   "http://localhost:11434",
   serverOnline: false,
   selectedFile: null,
   keys: Object.fromEntries(ALL_PROVIDERS.map(p => [p, ""])),
@@ -41,10 +48,16 @@ $("settings-shortcut").addEventListener("click", () => {
 
 // ── settings load ─────────────────────────────────────────────────────────────
 async function loadSettings() {
-  const data = await chrome.storage.local.get(["serverUrl","keys"]);
+  const data = await chrome.storage.local.get(["serverUrl","ollamaUrl","keys"]);
   if (data.serverUrl) {
     state.serverUrl = data.serverUrl;
     $("server-url-input").value = data.serverUrl;
+  }
+  if (data.ollamaUrl) {
+    state.ollamaUrl = data.ollamaUrl;
+  }
+  if ($("ollama-url-input")) {
+    $("ollama-url-input").value = state.ollamaUrl;
   }
   if (data.keys) {
     state.keys = { ...state.keys, ...data.keys };
@@ -126,6 +139,83 @@ function parseModelSelect(value) {
   const [provider, model] = value.split(":");
   return { provider, model };
 }
+
+function backgroundMessage(payload) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(payload, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      resolve(response);
+    });
+  });
+}
+
+async function fetchOllamaViaBackground(url, options = {}) {
+  const response = await backgroundMessage({ type: "OLLAMA_FETCH", url, options });
+
+  if (!response) {
+    throw new Error("Ollama request failed: empty response from extension background.");
+  }
+
+  if (!response.ok) {
+    if (response.status === 403) {
+      throw new Error(
+        "Ollama 403 (CORS): restart Ollama with extension origins allowed.\n" +
+        "PowerShell:\n" +
+        "1) taskkill /IM ollama.exe /F\n" +
+        "2) $env:OLLAMA_ORIGINS='*'\n" +
+        "3) ollama serve"
+      );
+    }
+    if (response.status === 0) {
+      throw new Error(`Ollama: Failed to connect — ${response.error || "unknown network error"}`);
+    }
+    throw new Error(
+      response?.data?.error?.message ||
+      response?.data?.message ||
+      `Ollama ${response.status}`
+    );
+  }
+
+  return response.data || {};
+}
+
+async function fetchJsonWithError(url, options, fallbackLabel) {
+  let response;
+  try {
+    response = await fetch(url, options);
+  } catch (e) {
+    if (fallbackLabel === "Ollama") {
+      throw new Error(
+        "Ollama: Failed to connect. Possible causes:\n" +
+        "1. Run: ollama serve\n" +
+        "2. CORS blocked — restart Ollama with:\n" +
+        "   $env:OLLAMA_ORIGINS=\"chrome-extension://*\"; ollama serve"
+      );
+    }
+    throw new Error(`${fallbackLabel}: Failed to fetch — ${e.message}`);
+  }
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    if (fallbackLabel === "Ollama" && response.status === 403) {
+      throw new Error(
+        "Ollama 403 (CORS): restart Ollama with extension origins allowed.\n" +
+        "PowerShell:\n" +
+        "1) taskkill /IM ollama.exe /F\n" +
+        "2) $env:OLLAMA_ORIGINS='*'\n" +
+        "3) ollama serve\n" +
+        "Then reload the Chrome extension."
+      );
+    }
+    throw new Error(
+      json?.error?.message || json?.message || `${fallbackLabel} ${response.status}`
+    );
+  }
+  return json;
+}
+
 function showError(box, msg) { box.textContent = msg; box.classList.add("visible"); }
 function hideError(box) { box.classList.remove("visible"); }
 function setLoading(btn, on) { btn.disabled = on; btn.classList.toggle("spinning", on); }
@@ -185,14 +275,41 @@ async function callOpenAI(text, key) {
 }
 
 async function callGemini(text, key) {
-  const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
-    { method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ contents:[{ parts:[{ text: PROMPT(text) }] }] }) }
-  );
-  if (!r.ok) { const e=await r.json().catch(()=>({})); throw new Error(e?.error?.message||`Gemini ${r.status}`); }
-  const d = await r.json();
-  return { summary: d.candidates[0].content.parts[0].text };
+  let lastError = null;
+
+  for (const model of GEMINI_MODEL_CANDIDATES) {
+    try {
+      const data = await fetchJsonWithError(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ contents:[{ parts:[{ text: PROMPT(text) }] }] }),
+        },
+        "Gemini"
+      );
+
+      const summary = data?.candidates?.[0]?.content?.parts?.map(part => part.text || "").join("\n").trim();
+      if (!summary) {
+        throw new Error(`Gemini returned an empty response for ${model}.`);
+      }
+
+      return { summary, model_used: model };
+    } catch (error) {
+      lastError = error;
+      const message = (error?.message || String(error)).toLowerCase();
+      if (
+        message.includes("not found") ||
+        message.includes("not supported") ||
+        message.includes("unsupported")
+      ) {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw lastError || new Error("Unable to find a supported Gemini model for this API key.");
 }
 
 async function callAnthropic(text, key) {
@@ -207,6 +324,27 @@ async function callAnthropic(text, key) {
   if (!r.ok) { const e=await r.json().catch(()=>({})); throw new Error(e?.error?.message||`Anthropic ${r.status}`); }
   const d = await r.json();
   return { summary: d.content[0].text };
+}
+
+async function callOllama(text) {
+  const baseUrl = state.ollamaUrl.replace(/\/$/, "");
+  const data = await fetchOllamaViaBackground(`${baseUrl}/api/generate`, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      model:"llama3.2",
+      prompt:PROMPT(text),
+      stream:false,
+    }),
+  });
+
+  if (!data?.response) {
+    throw new Error(
+      "Ollama: No response text received. Run `ollama pull llama3.2` to ensure the model is downloaded."
+    );
+  }
+
+  return { summary: data.response, model_used: "llama3.2" };
 }
 
 async function callMistral(text, key) {
@@ -255,9 +393,12 @@ async function callCohere(text, key) {
 }
 
 const CLOUD_CALLERS = { openai:callOpenAI, gemini:callGemini, anthropic:callAnthropic,
-                        mistral:callMistral, groq:callGroq, cohere:callCohere };
+                        mistral:callMistral, groq:callGroq, cohere:callCohere, ollama:callOllama };
 
 async function callCloud(provider, text) {
+  if (provider === "ollama") {
+    return callOllama(text);
+  }
   const key = state.keys[provider];
   if (!key) throw new Error(`No ${provider} API key saved. Go to Settings ⚙ to add it.`);
   const fn = CLOUD_CALLERS[provider];
@@ -474,6 +615,26 @@ $("test-server-btn").addEventListener("click", async () => {
   await chrome.storage.local.set({ serverUrl: url });
   await checkServer();
 });
+
+if ($("test-ollama-btn")) {
+  $("test-ollama-btn").addEventListener("click", async () => {
+    const url = $("ollama-url-input").value.trim();
+    state.ollamaUrl = url;
+    await chrome.storage.local.set({ ollamaUrl: url });
+
+    try {
+      const baseUrl = state.ollamaUrl.replace(/\/$/, "");
+      const data = await fetchOllamaViaBackground(`${baseUrl}/api/tags`, { method:"GET" });
+      const hasLlama = Array.isArray(data?.models) && data.models.some(model => model?.name?.startsWith("llama3.2"));
+      if (!hasLlama) {
+        throw new Error("Ollama is reachable, but `llama3.2` is not installed yet. Run: `ollama pull llama3.2`.");
+      }
+      alert("Ollama is reachable and llama3.2 is installed.");
+    } catch (error) {
+      alert(error?.message || String(error));
+    }
+  });
+}
 
 $("clear-keys-btn").addEventListener("click", async () => {
   if (!confirm("Clear all saved API keys?")) return;

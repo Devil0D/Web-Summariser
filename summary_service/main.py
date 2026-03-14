@@ -12,6 +12,7 @@ from fastapi import FastAPI, Form, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import io, logging, warnings
+import re
 import pypdf  # already in your project — no new install needed
 
 warnings.filterwarnings("ignore")
@@ -65,14 +66,78 @@ def _extract_pdf_text(data: bytes) -> str:
 def _extract_txt_text(data: bytes) -> str:
     return data.decode("utf-8", errors="ignore")
 
+def _normalize_text(text: str) -> str:
+    return re.sub(r"\s+", " ", text or "").strip()
+
+def _split_sentences(text: str) -> list[str]:
+    normalized = _normalize_text(text)
+    if not normalized:
+        return []
+    return [piece.strip() for piece in re.split(r"(?<=[.!?])\s+", normalized) if piece.strip()]
+
+def _sentence_key(sentence: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", sentence.lower())
+
+def _dedupe_sentences(text: str, *, limit: int | None = None) -> list[str]:
+    unique_sentences = []
+    seen = set()
+
+    for sentence in _split_sentences(text):
+        key = _sentence_key(sentence)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        unique_sentences.append(sentence)
+        if limit and len(unique_sentences) >= limit:
+            break
+
+    return unique_sentences
+
+def _combine_summaries(*summaries: str) -> str:
+    merged = []
+    seen = set()
+
+    for summary in summaries:
+        for sentence in _split_sentences(summary):
+            key = _sentence_key(sentence)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            merged.append(sentence)
+
+    return " ".join(merged)
+
+def _format_summary(raw_summary: str) -> str:
+    clean_summary = _normalize_text(raw_summary)
+    bullets = _dedupe_sentences(clean_summary, limit=6)
+
+    if not bullets and clean_summary:
+        bullets = [clean_summary]
+
+    overview = bullets[0] if bullets else "No summary could be generated."
+    key_points = bullets[1:] if len(bullets) > 1 else bullets
+
+    lines = [
+        "Summary Overview:",
+        overview,
+        "",
+        "Key Points:",
+    ]
+
+    for item in key_points[:5]:
+        lines.append(f"- {item}")
+
+    return "\n".join(lines).strip()
+
 def _build_combined(text: str):
     """Run all three models and combine — matches original Flask behaviour."""
-    bart_out = bart_summary(text)
-    t5_out   = t5_summary(text)
-    lex_out  = extractive_summary(text)
-    combined = f"{bart_out} {t5_out} {lex_out}"
-    golden   = extractive_summary(combined)
-    return bart_out, t5_out, lex_out, golden
+    bart_out = _normalize_text(bart_summary(text))
+    t5_out   = _normalize_text(t5_summary(text))
+    lex_out  = _normalize_text(extractive_summary(text))
+    combined = _combine_summaries(bart_out, t5_out, lex_out) or _normalize_text(text)
+    golden_raw = _normalize_text(extractive_summary(combined))
+    golden = _format_summary(golden_raw)
+    return bart_out, t5_out, lex_out, golden, golden_raw
 
 
 # ── routes ────────────────────────────────────────────────────────────────────
@@ -128,7 +193,7 @@ async def summarize(
     text_to_summarize = _truncate(text_to_summarize)
 
     try:
-        bart_out, t5_out, lex_out, golden = _build_combined(text_to_summarize)
+        bart_out, t5_out, lex_out, golden, golden_raw = _build_combined(text_to_summarize)
     except Exception as e:
         logging.exception("Summarization failed")
         raise HTTPException(500, f"Failed to process the request: {e}")
@@ -138,6 +203,7 @@ async def summarize(
         "t5_summary":         t5_out,
         "extractive_summary": lex_out,
         "final_summary":      golden,
+        "raw_final_summary":  golden_raw,
     }
 
 
@@ -162,9 +228,10 @@ def summarize_selective(req: SelectiveRequest):
         elif model == "lexrank":
             return {"summary": extractive_summary(text), "model_used": "lexrank"}
         elif model == "combined":
-            bart_out, t5_out, lex_out, golden = _build_combined(text)
+            bart_out, t5_out, lex_out, golden, golden_raw = _build_combined(text)
             return {
                 "summary":            golden,
+                "raw_summary":        golden_raw,
                 "model_used":         "combined",
                 "bart_summary":       bart_out,
                 "t5_summary":         t5_out,

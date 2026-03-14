@@ -1,10 +1,6 @@
 import * as React from "react";
 import {
-  Command,
-  Frame,
   LifeBuoy,
-  Map,
-  PieChart,
   Send,
   Folder,
   PlusCircle,
@@ -25,42 +21,10 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "../context/AuthContext";
 
-const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  navSecondary: [
-    {
-      title: "Support",
-      url: "#",
-      icon: LifeBuoy,
-    },
-    {
-      title: "Feedback",
-      url: "#",
-      icon: Send,
-    },
-  ],
-  projects: [
-    {
-      name: "Design Engineering",
-      url: "#",
-      icon: Frame,
-    },
-    {
-      name: "Sales & Marketing",
-      url: "#",
-      icon: PieChart,
-    },
-    {
-      name: "Travel",
-      url: "#",
-      icon: Map,
-    },
-  ],
-};
+const navSecondary = [
+  { title: "Support", url: "#", icon: LifeBuoy },
+  { title: "Feedback", url: "#", icon: Send },
+];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user, folders, selectConversation } = useAuth();
@@ -72,37 +36,71 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     icon: Folder,
     items: [],
   }));
+
   return (
     <Sidebar variant="inset" {...props}>
-      <SidebarHeader>
+      {/* ── header ── */}
+      <SidebarHeader
+        style={{ background: "#fdfaf7", borderBottom: "1px solid #ede7de" }}
+      >
         <SidebarMenu>
+          {/* branding */}
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <a href="#">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <Command className="size-4" />
+              <a href="#" className="hover:bg-transparent">
+                <div
+                  className="flex aspect-square size-8 items-center justify-center rounded-xl text-white shadow-sm"
+                  style={{ background: "linear-gradient(135deg,#c4956a,#b87850)" }}
+                >
+                  <span
+                    className="text-sm font-bold"
+                    style={{ fontFamily: "'Playfair Display',serif" }}
+                  >
+                    W
+                  </span>
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Websears</span>
-                  <span className="truncate text-xs">Enterprise</span>
+                  <span
+                    className="truncate font-semibold text-[#3d3530]"
+                    style={{ fontFamily: "'Playfair Display',serif" }}
+                  >
+                    Websears
+                  </span>
+                  <span className="truncate text-xs text-[#b0a090]">
+                    AI Summariser
+                  </span>
                 </div>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
+
+          {/* new chat */}
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={() => selectConversation(null)}>
-              <PlusCircle className="size-4" />
+            <SidebarMenuButton
+              onClick={() => selectConversation(null)}
+              className="rounded-xl text-[#7c6d5e] hover:bg-[#f0ebe4] hover:text-[#c4956a] transition-colors font-semibold"
+            >
+              <PlusCircle className="size-4 text-[#c4956a]" />
               <span>New Chat</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent className="scrollbar-hide">
+
+      {/* ── content ── */}
+      <SidebarContent
+        className="scrollbar-hide"
+        style={{ background: "#fdfaf7" }}
+      >
         <NavMain items={navItems} />
         <NavHistory />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>
-      <SidebarFooter>
+
+      {/* ── footer ── */}
+      <SidebarFooter
+        style={{ background: "#fdfaf7", borderTop: "1px solid #ede7de" }}
+      >
         {user && (
           <NavUser
             user={{

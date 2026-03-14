@@ -10,63 +10,180 @@ import { Message } from "../models/Messages";
 
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const model = genAI.getGenerativeModel({ model: "gemini-pro" })
+const GEMINI_MODEL_CANDIDATES = [
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-8b",
+  "gemini-1.5-pro",
+];
 
-router.post("/", isAuthenticated, upload.single("file"), (async (req, res): Promise<void> => {
+const resolvedModelCache = new Map<string, string>();
+
+type ChatRequestBody = {
+  text?: string;
+  conversationId?: string;
+  apiKey?: string;
+  preferredModel?: string;
+};
+
+function safeDeleteTempFile(filePath?: string) {
+  if (filePath && fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+}
+
+function getGeminiApiKey(apiKey?: string) {
+  const resolvedKey = apiKey?.trim() || process.env.GEMINI_API_KEY;
+
+  if (!resolvedKey) {
+    throw new Error(
+      "No Gemini API key is configured. Add one in AI Settings or set GEMINI_API_KEY on the server."
+    );
+  }
+
+  return resolvedKey;
+}
+
+function buildModelCandidates(preferredModel?: string, apiKey?: string) {
+  const resolvedKey = getGeminiApiKey(apiKey);
+  const cachedModel = resolvedModelCache.get(resolvedKey);
+
+  return [preferredModel, cachedModel, ...GEMINI_MODEL_CANDIDATES].filter(
+    (value, index, values): value is string => Boolean(value) && values.indexOf(value) === index
+  );
+}
+
+function extractErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
+}
+
+function isUnsupportedModelError(error: unknown) {
+  const message = extractErrorMessage(error).toLowerCase();
+  return (
+    message.includes("not found") ||
+    message.includes("not supported") ||
+    message.includes("unsupported") ||
+    message.includes("404")
+  );
+}
+
+async function generateGeminiResponse(
+  promptParts: (string | Part)[],
+  options: { apiKey?: string; preferredModel?: string }
+) {
+  const resolvedKey = getGeminiApiKey(options.apiKey);
+  const genAI = new GoogleGenerativeAI(resolvedKey);
+  const candidates = buildModelCandidates(options.preferredModel, options.apiKey);
+
+  let lastError: unknown = null;
+
+  for (const candidate of candidates) {
+    try {
+      const model = genAI.getGenerativeModel({ model: candidate });
+      const result = await model.generateContent(promptParts);
+      resolvedModelCache.set(resolvedKey, candidate);
+
+      return {
+        text: result.response.text(),
+        model: candidate,
+      };
+    } catch (error) {
+      lastError = error;
+      if (isUnsupportedModelError(error)) {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error(
+    `Unable to find a Gemini model that works for this key. Tried: ${candidates.join(", ")}. Last error: ${extractErrorMessage(lastError)}`
+  );
+}
+
+router.get("/models", isAuthenticated, (_req, res) => {
+  res.json({
+    models: GEMINI_MODEL_CANDIDATES,
+    defaultModel: GEMINI_MODEL_CANDIDATES[0],
+  });
+});
+
+router.post("/validate-config", isAuthenticated, express.json(), async (req, res) => {
   try {
-    const { text, conversationId } = req.body;
-    const file = req.file;
+    const { apiKey, preferredModel } = req.body as ChatRequestBody;
+    const result = await generateGeminiResponse(["Reply with only the word OK."], {
+      apiKey,
+      preferredModel,
+    });
+
+    res.json({
+      ok: true,
+      resolvedModel: result.model,
+    });
+  } catch (error) {
+    res.status(400).json({
+      ok: false,
+      message: extractErrorMessage(error),
+    });
+  }
+});
+
+router.post("/", isAuthenticated, upload.single("file"), async (req, res): Promise<void> => {
+  const file = req.file;
+
+  try {
+    const { text, conversationId, apiKey, preferredModel } = req.body as ChatRequestBody;
     const userId = (req as any).user.ID;
-    const promptContent = text || "";
+    const promptContent = (text || "").trim();
 
     if (!promptContent && !file) {
       res.status(400).json({ message: "A prompt or a file is required" });
-      return 
+      return;
     }
 
-    // --- Database Logic: Create conversation and save user message ---
     let currentConversationId = conversationId;
     if (!currentConversationId) {
       const newConversation = await Conversation.create({
-        title: promptContent.substring(0, 50) || "File Analysis",
-        userId: userId,
+        title: promptContent.substring(0, 50) || file?.originalname || "File Analysis",
+        userId,
       });
-      currentConversationId = newConversation.ID;
+      currentConversationId = String(newConversation.ID);
     }
 
     await Message.create({
-      conversationId: currentConversationId,
+      conversationId: Number(currentConversationId),
       role: "user",
-      content: promptContent,
-      userId: userId,
+      content: promptContent || `[Uploaded file] ${file?.originalname || "attachment"}`,
+      userId,
     });
 
     let aiResponse = "";
+    let resolvedModel: string | null = null;
 
-    // --- Corrected AI Routing Logic ---
-    if (promptContent.toLowerCase().includes("summarize")) {
-      console.log("Routing to Python summarization service...");
+    const shouldSummarize =
+      /\bsummar(y|ize|ise)\b/i.test(promptContent) || (!promptContent && Boolean(file));
+
+    if (shouldSummarize) {
       const form = new FormData();
-      
-      // Add text or file to the form for the Python service
+
       if (file) {
-        form.append('file', fs.createReadStream(file.path), file.originalname);
+        form.append("file", fs.createReadStream(file.path), file.originalname);
       } else {
-        form.append('text', promptContent);
+        form.append("text", promptContent);
       }
 
-      const summaryResponse = await axios.post(
-        "http://localhost:5001/summarize",
-        form,
-        { headers: form.getHeaders() }
-      );
+      const summaryResponse = await axios.post("http://localhost:5001/summarize", form, {
+        headers: form.getHeaders(),
+      });
       aiResponse = summaryResponse.data.final_summary;
-
+      resolvedModel = "combined-summary";
     } else {
-      // --- Gemini API Logic ---
-      console.log("Routing to Gemini API...");
       const apiPromptParts: (string | Part)[] = [];
+
       if (file) {
         apiPromptParts.push({
           inlineData: {
@@ -75,35 +192,39 @@ router.post("/", isAuthenticated, upload.single("file"), (async (req, res): Prom
           },
         });
       }
+
       if (promptContent) {
         apiPromptParts.push(promptContent);
       }
-      const result = await model.generateContent(apiPromptParts);
-      aiResponse = result.response.text();
-    }
-    
-    // Clean up the temporary file if one existed, AFTER it has been used
-    if (file) {
-      fs.unlinkSync(file.path);
+
+      const result = await generateGeminiResponse(apiPromptParts, {
+        apiKey,
+        preferredModel,
+      });
+      aiResponse = result.text;
+      resolvedModel = result.model;
     }
 
-    // --- Save AI message and send response ---
     await Message.create({
-      conversationId: currentConversationId,
+      conversationId: Number(currentConversationId),
       role: "model",
       content: aiResponse,
-      userId: userId,
+      userId,
     });
-    res.json({ response: aiResponse, conversationId: currentConversationId });
 
-  } catch (error: any) {
+    res.json({
+      response: aiResponse,
+      conversationId: Number(currentConversationId),
+      model: resolvedModel,
+    });
+  } catch (error) {
     console.error("API Error:", error);
-    // Clean up file on error as well
-    if (req.file) {
-      fs.unlinkSync(req.file.path);
-    }
-    res.status(500).json({ message: "Failed to get response from AI" });
+    res.status(500).json({
+      message: extractErrorMessage(error) || "Failed to get response from AI",
+    });
+  } finally {
+    safeDeleteTempFile(file?.path);
   }
-}))
+});
 
 export default router;

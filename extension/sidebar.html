@@ -452,6 +452,9 @@
           <option value="local:t5">T5</option>
           <option value="local:lexrank">LexRank (extractive)</option>
         </optgroup>
+        <optgroup label="🦙 Ollama">
+          <option value="cloud:ollama">Ollama Llama 3.2</option>
+        </optgroup>
         <optgroup label="☁ Cloud APIs" id="cloud-group">
           <option value="cloud:openai" id="opt-openai" disabled>OpenAI GPT-4o  (add key →)</option>
           <option value="cloud:gemini" id="opt-gemini" disabled>Google Gemini  (add key →)</option>
@@ -518,6 +521,7 @@
         <option value="local:bart">BART</option>
         <option value="local:t5">T5</option>
         <option value="local:lexrank">LexRank</option>
+        <option value="cloud:ollama">Ollama Llama 3.2</option>
         <option value="cloud:openai"   id="uopt-openai"    disabled>OpenAI GPT-4o  (add key →)</option>
         <option value="cloud:gemini"   id="uopt-gemini"    disabled>Google Gemini  (add key →)</option>
         <option value="cloud:anthropic" id="uopt-anthropic" disabled>Anthropic Claude  (add key →)</option>
@@ -566,6 +570,16 @@
         <div class="inline-row">
           <input type="text" id="server-url-input" value="http://localhost:5001" />
           <button class="btn btn-ghost" id="test-server-btn" style="white-space:nowrap;padding:8px 12px">Test</button>
+        </div>
+      </div>
+      <div class="settings-row">
+        <label>Ollama URL</label>
+        <div class="inline-row">
+          <input type="text" id="ollama-url-input" value="http://localhost:11434" />
+          <button class="btn btn-ghost" id="test-ollama-btn" style="white-space:nowrap;padding:8px 12px">Test</button>
+        </div>
+        <div style="margin-top:6px;font-size:11px;color:var(--text-muted)">
+          Run <strong>ollama serve</strong> and <strong>ollama pull llama3.2</strong> before using this option.
         </div>
       </div>
     </div>

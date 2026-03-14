@@ -24,8 +24,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 
 export function NavMain({
@@ -37,18 +35,14 @@ export function NavMain({
     url: string;
     icon: LucideIcon;
     isActive?: boolean;
-    items?: {
-      title: string;
-      url: string;
-    }[];
+    items?: { title: string; url: string }[];
   }[];
 }) {
   const { createFolder, deleteFolder } = useAuth();
   const [newFolderName, setNewFolderName] = useState("");
-
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const handelCreateClick = () => {
+  const handleCreate = () => {
     if (newFolderName.trim()) {
       createFolder(newFolderName.trim());
       setNewFolderName("");
@@ -59,40 +53,55 @@ export function NavMain({
   return (
     <Collapsible defaultOpen>
       <SidebarGroup className="flex-col">
-        {/*----HEADER SECTION-----*/}
-
         <SidebarGroupLabel>
-          <CollapsibleTrigger className="group flex flex-1 items-center gap-2 cursor-pointer">
-            <ChevronRight className="size-4 transition-transform group-data-[state=open]:rotate-90" />
-            <span>Folders</span>
+          <CollapsibleTrigger className="group flex flex-1 items-center gap-2 cursor-pointer text-[#b0a090] hover:text-[#7c6d5e] transition-colors">
+            <ChevronRight className="size-3.5 transition-transform group-data-[state=open]:rotate-90" />
+            <span className="text-xs font-semibold uppercase tracking-wider">Folders</span>
           </CollapsibleTrigger>
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <SidebarGroupAction asChild>
-                <button aria-label="Create new Folder">
-                  <Plus className="size-4" />
+                <button
+                  aria-label="New folder"
+                  className="text-[#b0a090] hover:text-[#c4956a] transition-colors"
+                >
+                  <Plus className="size-3.5" />
                 </button>
               </SidebarGroupAction>
             </DialogTrigger>
 
-            <DialogContent className="sm:max-w-md bg-slate-400">
+            <DialogContent
+              className="sm:max-w-sm rounded-2xl"
+              style={{
+                background: "#fdfaf7",
+                border: "1px solid #e0d8ce",
+                boxShadow: "0 12px 40px rgba(100,80,60,0.16)",
+              }}
+            >
               <DialogHeader>
-                <DialogTitle>Create Folder</DialogTitle>
+                <DialogTitle
+                  className="text-[#3d3530]"
+                  style={{ fontFamily: "'Playfair Display',serif" }}
+                >
+                  New Folder
+                </DialogTitle>
               </DialogHeader>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 <Input
-                  placeholder="Enter Folder name"
+                  placeholder="Folder name…"
                   value={newFolderName}
                   onChange={(e) => setNewFolderName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handelCreateClick()}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                  className="border-[#e0d8ce] bg-[#f5f0eb] focus:border-[#c4956a] text-[#3d3530]"
                 />
               </div>
               <DialogFooter>
                 <Button
                   type="submit"
-                  className="border hover:bg-slate-500"
-                  onClick={handelCreateClick}
+                  onClick={handleCreate}
+                  className="rounded-xl text-white font-semibold"
+                  style={{ background: "linear-gradient(135deg,#c4956a,#b87850)" }}
                 >
                   Create
                 </Button>
@@ -101,61 +110,28 @@ export function NavMain({
           </Dialog>
         </SidebarGroupLabel>
 
-        {/* --- FOLDER LIST SECTION --- */}
-
         <CollapsibleContent>
           <SidebarMenuSub>
             {items.map((item) => (
               <SidebarMenuItem key={item.id} className="group/menu-item">
                 <div className="flex w-full items-center">
-                  <Collapsible defaultOpen={item.isActive} className="flex-1">
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton
-                        asChild={!item.items?.length}
-                        tooltip={item.title}
-                        isActive={item.isActive}
-                      >
-                        {item.items?.length ? (
-                          <span className="flex w-full items-center gap-2">
-                            <item.icon />
-                            <span>{item.title}</span>
-                            <ChevronRight className="ml-auto size-4 transition-transform data-[state=open]:rotate-90" />
-                          </span>
-                        ) : (
-                          <a
-                            href={item.url}
-                            className="flex w-full items-center gap-2"
-                          >
-                            <item.icon />
-                            <span>{item.title}</span>
-                          </a>
-                        )}
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    isActive={item.isActive}
+                    className="flex-1 rounded-xl text-[#7c6d5e] hover:bg-[#f0ebe4] hover:text-[#3d3530] data-[active=true]:bg-[#f0ebe4] data-[active=true]:text-[#c4956a] transition-colors"
+                  >
+                    <item.icon className="size-3.5" />
+                    <span className="truncate text-sm">{item.title}</span>
+                  </SidebarMenuButton>
 
-                    {item.items?.length ? (
-                      <CollapsibleContent>
-                        <SidebarMenuSub>
-                          {item.items.map((subItem) => (
-                            <SidebarMenuSubItem key={subItem.title}>
-                              <SidebarMenuSubButton asChild>
-                                <a href={subItem.url}>
-                                  <span>{subItem.title}</span>
-                                </a>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          ))}
-                        </SidebarMenuSub>
-                      </CollapsibleContent>
-                    ) : null}
-                  </Collapsible>
                   <button
                     onClick={() => deleteFolder(item.id)}
                     aria-label="Delete folder"
-                    className="p-1 h-7 w-7 ml-1 opacity-0
-              group-hover/menu-item:opacity-100 flex items-center justify-center rounded-md hover:bg-red-500/10 hover:text-red-500 "
+                    className="p-1 h-6 w-6 ml-1 opacity-0 group-hover/menu-item:opacity-100
+                      flex items-center justify-center rounded-lg
+                      hover:bg-red-50 hover:text-red-500 text-[#b0a090] transition-all"
                   >
-                    <Trash2 className="size-4" />
+                    <Trash2 className="size-3.5" />
                   </button>
                 </div>
               </SidebarMenuItem>

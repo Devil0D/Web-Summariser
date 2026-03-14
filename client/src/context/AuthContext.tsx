@@ -34,6 +34,47 @@ interface Folder {
   Folder_Name: string;
   userID: number;
 }
+
+export type AiModel =
+  | "gemini-2.0-flash"
+  | "gemini-1.5-flash"
+  | "gemini-1.5-flash-8b"
+  | "gemini-1.5-pro";
+
+export interface AiSettings {
+  apiKey: string;
+  preferredModel: AiModel;
+}
+
+const AI_SETTINGS_STORAGE_KEY = "websears.ai-settings";
+const DEFAULT_AI_SETTINGS: AiSettings = {
+  apiKey: "",
+  preferredModel: "gemini-2.0-flash",
+};
+
+function loadAiSettings(): AiSettings {
+  if (typeof window === "undefined") {
+    return DEFAULT_AI_SETTINGS;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(AI_SETTINGS_STORAGE_KEY);
+    if (!raw) {
+      return DEFAULT_AI_SETTINGS;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<AiSettings>;
+    return {
+      apiKey: parsed.apiKey ?? DEFAULT_AI_SETTINGS.apiKey,
+      preferredModel:
+        (parsed.preferredModel as AiModel | undefined) ??
+        DEFAULT_AI_SETTINGS.preferredModel,
+    };
+  } catch {
+    return DEFAULT_AI_SETTINGS;
+  }
+}
+
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
@@ -46,6 +87,8 @@ interface AuthContextType {
   activeConversationId: number | null;
   selectConversation: (id: number | null) => void;
   setUser: Dispatch<SetStateAction<User | null>>;
+  aiSettings: AiSettings;
+  updateAiSettings: (settings: AiSettings) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -59,6 +102,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isLoading, setLoading] = useState(true);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [aiSettings, setAiSettings] = useState<AiSettings>(() => loadAiSettings());
   const [activeConversationId, setActiveConversationId] = useState<
     number | null
   >(null);
@@ -126,6 +170,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  const updateAiSettings = (settings: AiSettings) => {
+    setAiSettings(settings);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(AI_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -140,6 +191,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         selectConversation,
         activeConversationId,
         deleteConversation,
+        aiSettings,
+        updateAiSettings,
       }}
     >
       {children}
