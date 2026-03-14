@@ -10,6 +10,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "PAGE_CONTENT") {
     // Forward page content to the sidebar
     chrome.runtime.sendMessage(message);
+<<<<<<< HEAD
     return true;
   }
 
@@ -26,5 +27,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+=======
+  }
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
   return true;
 });

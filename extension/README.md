@@ -67,7 +67,11 @@ Or: `curl http://localhost:5001/health`
 1. Open Chrome and go to `chrome://extensions`
 2. Enable **Developer mode** (toggle, top-right)
 3. Click **Load unpacked**
+<<<<<<< HEAD
 4. Select the `extension/` folder from this workspace
+=======
+4. Select the `extension/` folder from this zip
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 5. You'll see the Websears icon appear in your toolbar
 
 ### Using it
@@ -94,6 +98,7 @@ Keys are stored locally in Chrome's storage — never sent anywhere except the r
 
 Once saved, those providers appear in the model dropdown on the Summarize and Upload tabs.
 
+<<<<<<< HEAD
 ### Using Ollama Llama 3.2
 
 The extension now supports a local Ollama runtime with the `llama3.2` model.
@@ -107,6 +112,8 @@ The extension now supports a local Ollama runtime with the `llama3.2` model.
 
 This path does not require an API key.
 
+=======
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 ---
 
 ## Running everything together

@@ -1,19 +1,25 @@
 // sidebar.js
 
 const ALL_PROVIDERS = ["openai","gemini","anthropic","mistral","groq","cohere"];
+<<<<<<< HEAD
 const GEMINI_MODEL_CANDIDATES = [
   "gemini-2.0-flash",
   "gemini-1.5-flash",
   "gemini-1.5-flash-8b",
   "gemini-1.5-pro",
 ];
+=======
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 
 const state = {
   pageText:    "",
   pageTitle:   "",
   pageUrl:     "",
   serverUrl:   "http://localhost:5001",
+<<<<<<< HEAD
   ollamaUrl:   "http://localhost:11434",
+=======
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
   serverOnline: false,
   selectedFile: null,
   keys: Object.fromEntries(ALL_PROVIDERS.map(p => [p, ""])),
@@ -48,17 +54,24 @@ $("settings-shortcut").addEventListener("click", () => {
 
 // ── settings load ─────────────────────────────────────────────────────────────
 async function loadSettings() {
+<<<<<<< HEAD
   const data = await chrome.storage.local.get(["serverUrl","ollamaUrl","keys"]);
+=======
+  const data = await chrome.storage.local.get(["serverUrl","keys"]);
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
   if (data.serverUrl) {
     state.serverUrl = data.serverUrl;
     $("server-url-input").value = data.serverUrl;
   }
+<<<<<<< HEAD
   if (data.ollamaUrl) {
     state.ollamaUrl = data.ollamaUrl;
   }
   if ($("ollama-url-input")) {
     $("ollama-url-input").value = state.ollamaUrl;
   }
+=======
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
   if (data.keys) {
     state.keys = { ...state.keys, ...data.keys };
     ALL_PROVIDERS.forEach(k => {
@@ -139,6 +152,7 @@ function parseModelSelect(value) {
   const [provider, model] = value.split(":");
   return { provider, model };
 }
+<<<<<<< HEAD
 
 function backgroundMessage(payload) {
   return new Promise((resolve, reject) => {
@@ -216,6 +230,8 @@ async function fetchJsonWithError(url, options, fallbackLabel) {
   return json;
 }
 
+=======
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 function showError(box, msg) { box.textContent = msg; box.classList.add("visible"); }
 function hideError(box) { box.classList.remove("visible"); }
 function setLoading(btn, on) { btn.disabled = on; btn.classList.toggle("spinning", on); }
@@ -275,6 +291,7 @@ async function callOpenAI(text, key) {
 }
 
 async function callGemini(text, key) {
+<<<<<<< HEAD
   let lastError = null;
 
   for (const model of GEMINI_MODEL_CANDIDATES) {
@@ -310,6 +327,16 @@ async function callGemini(text, key) {
   }
 
   throw lastError || new Error("Unable to find a supported Gemini model for this API key.");
+=======
+  const r = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+    { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ contents:[{ parts:[{ text: PROMPT(text) }] }] }) }
+  );
+  if (!r.ok) { const e=await r.json().catch(()=>({})); throw new Error(e?.error?.message||`Gemini ${r.status}`); }
+  const d = await r.json();
+  return { summary: d.candidates[0].content.parts[0].text };
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 }
 
 async function callAnthropic(text, key) {
@@ -326,6 +353,7 @@ async function callAnthropic(text, key) {
   return { summary: d.content[0].text };
 }
 
+<<<<<<< HEAD
 async function callOllama(text) {
   const baseUrl = state.ollamaUrl.replace(/\/$/, "");
   const data = await fetchOllamaViaBackground(`${baseUrl}/api/generate`, {
@@ -347,6 +375,8 @@ async function callOllama(text) {
   return { summary: data.response, model_used: "llama3.2" };
 }
 
+=======
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 async function callMistral(text, key) {
   const r = await fetch("https://api.mistral.ai/v1/chat/completions", {
     method:"POST",
@@ -393,12 +423,18 @@ async function callCohere(text, key) {
 }
 
 const CLOUD_CALLERS = { openai:callOpenAI, gemini:callGemini, anthropic:callAnthropic,
+<<<<<<< HEAD
                         mistral:callMistral, groq:callGroq, cohere:callCohere, ollama:callOllama };
 
 async function callCloud(provider, text) {
   if (provider === "ollama") {
     return callOllama(text);
   }
+=======
+                        mistral:callMistral, groq:callGroq, cohere:callCohere };
+
+async function callCloud(provider, text) {
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
   const key = state.keys[provider];
   if (!key) throw new Error(`No ${provider} API key saved. Go to Settings ⚙ to add it.`);
   const fn = CLOUD_CALLERS[provider];
@@ -616,6 +652,7 @@ $("test-server-btn").addEventListener("click", async () => {
   await checkServer();
 });
 
+<<<<<<< HEAD
 if ($("test-ollama-btn")) {
   $("test-ollama-btn").addEventListener("click", async () => {
     const url = $("ollama-url-input").value.trim();
@@ -636,6 +673,8 @@ if ($("test-ollama-btn")) {
   });
 }
 
+=======
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 $("clear-keys-btn").addEventListener("click", async () => {
   if (!confirm("Clear all saved API keys?")) return;
   state.keys = Object.fromEntries(ALL_PROVIDERS.map(p => [p, ""]));

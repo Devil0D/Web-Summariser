@@ -1,10 +1,15 @@
+<<<<<<< HEAD
 // sidebar.js  –  Websears v2.1
 // Fixes: Gemini model name (gemini-1.5-flash → gemini-2.0-flash-exp with fallback)
 // New: formatted summaries, noise filter, voice TTS, export .txt / .md, key validation
+=======
+// sidebar.js
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 
 const ALL_PROVIDERS = ["openai","gemini","anthropic","mistral","groq","cohere"];
 
 const state = {
+<<<<<<< HEAD
   pageText:     "",
   pageTitle:    "",
   pageUrl:      "",
@@ -21,10 +26,20 @@ const state = {
   speechUtterance: null,
   speaking:     false,
   speakingUpload: false,
+=======
+  pageText:    "",
+  pageTitle:   "",
+  pageUrl:     "",
+  serverUrl:   "http://localhost:5001",
+  serverOnline: false,
+  selectedFile: null,
+  keys: Object.fromEntries(ALL_PROVIDERS.map(p => [p, ""])),
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 };
 
 const $ = id => document.getElementById(id);
 
+<<<<<<< HEAD
 // ── NOISE CLEANING ────────────────────────────────────────────────────────────
 // Removes common output corruption: garbled unicode, repeated chars, soft hyphens,
 // control chars, and truncated/repeated token artifacts (versiuneversiune etc.)
@@ -83,19 +98,43 @@ document.querySelectorAll(".tab").forEach(tab => {
   tab.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
     document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+=======
+const tabs         = document.querySelectorAll(".tab");
+const panels       = document.querySelectorAll(".panel");
+const serverDot    = $("server-dot");
+const serverText   = $("server-status-text");
+const summarizeBtn = $("summarize-btn");
+const resultBox    = $("result-container");
+const errorBox     = $("error-box");
+
+// ── tabs ──────────────────────────────────────────────────────────────────────
+tabs.forEach(tab => {
+  tab.addEventListener("click", () => {
+    tabs.forEach(t => t.classList.remove("active"));
+    panels.forEach(p => p.classList.remove("active"));
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
     tab.classList.add("active");
     $(`panel-${tab.dataset.tab}`).classList.add("active");
   });
 });
 
 $("settings-shortcut").addEventListener("click", () => {
+<<<<<<< HEAD
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+=======
+  tabs.forEach(t => t.classList.remove("active"));
+  panels.forEach(p => p.classList.remove("active"));
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
   document.querySelector('[data-tab="settings"]').classList.add("active");
   $("panel-settings").classList.add("active");
 });
 
+<<<<<<< HEAD
 // ── SETTINGS LOAD ─────────────────────────────────────────────────────────────
+=======
+// ── settings load ─────────────────────────────────────────────────────────────
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 async function loadSettings() {
   const data = await chrome.storage.local.get(["serverUrl","keys"]);
   if (data.serverUrl) {
@@ -122,6 +161,7 @@ function enableCloudOption(provider) {
   });
 }
 
+<<<<<<< HEAD
 // ── SERVER HEALTH ──────────────────────────────────────────────────────────────
 async function checkServer() {
   $("server-dot").className = "status-dot checking";
@@ -131,17 +171,37 @@ async function checkServer() {
     if (r.ok) {
       $("server-dot").className = "status-dot ok";
       $("server-status-text").textContent = "Local server online";
+=======
+// ── server health ─────────────────────────────────────────────────────────────
+async function checkServer() {
+  serverDot.className = "status-dot checking";
+  serverText.textContent = "Checking local server…";
+  try {
+    const r = await fetch(`${state.serverUrl}/health`, { signal: AbortSignal.timeout(4000) });
+    if (r.ok) {
+      serverDot.className = "status-dot ok";
+      serverText.textContent = "Local server online";
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
       state.serverOnline = true;
       return true;
     }
   } catch (_) {}
+<<<<<<< HEAD
   $("server-dot").className = "status-dot";
   $("server-status-text").textContent = "Local server offline";
+=======
+  serverDot.className = "status-dot";
+  serverText.textContent = "Local server offline";
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
   state.serverOnline = false;
   return false;
 }
 
+<<<<<<< HEAD
 // ── PAGE CONTENT ───────────────────────────────────────────────────────────────
+=======
+// ── page content ──────────────────────────────────────────────────────────────
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 async function grabPageContent() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -177,12 +237,17 @@ chrome.runtime.onMessage.addListener((msg) => {
   }
 });
 
+<<<<<<< HEAD
 // ── HELPERS ───────────────────────────────────────────────────────────────────
+=======
+// ── helpers ───────────────────────────────────────────────────────────────────
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 function parseModelSelect(value) {
   const [provider, model] = value.split(":");
   return { provider, model };
 }
 function showError(box, msg) { box.textContent = msg; box.classList.add("visible"); }
+<<<<<<< HEAD
 function hideError(box)      { box.classList.remove("visible"); }
 function setLoading(btn, on) { btn.disabled = on; btn.classList.toggle("spinning", on); }
 
@@ -259,6 +324,27 @@ function displayUploadResult(summary) {
 }
 
 // ── LOCAL MODEL ───────────────────────────────────────────────────────────────
+=======
+function hideError(box) { box.classList.remove("visible"); }
+function setLoading(btn, on) { btn.disabled = on; btn.classList.toggle("spinning", on); }
+
+function displayResults(data, isCloud = false) {
+  resultBox.classList.add("visible");
+  const final = isCloud ? data.summary : (data.final_summary || data.summary || "");
+  $("text-final").textContent = final;
+  const showBreakdown = !isCloud && data.bart_summary;
+  ["bart","t5","lexrank"].forEach(m => {
+    $(`section-${m}`).style.display = showBreakdown ? "block" : "none";
+  });
+  if (showBreakdown) {
+    $("text-bart").textContent    = data.bart_summary        || "";
+    $("text-t5").textContent      = data.t5_summary          || "";
+    $("text-lexrank").textContent = data.extractive_summary  || "";
+  }
+}
+
+// ── local model ───────────────────────────────────────────────────────────────
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 async function callLocalModel(text, model) {
   if (model === "combined") {
     const form = new FormData();
@@ -276,18 +362,30 @@ async function callLocalModel(text, model) {
   return r.json();
 }
 
+<<<<<<< HEAD
 // ── CLOUD API CALLS ───────────────────────────────────────────────────────────
 const PROMPT = (text) =>
   `Please summarize the following web page content. Write a concise, informative summary. Return ONLY the summary text with no preamble, headers, or meta-commentary:\n\n${text.slice(0, 12000)}`;
+=======
+// ── cloud API calls ───────────────────────────────────────────────────────────
+const PROMPT = (text) =>
+  `Summarize the following text concisely. Return only the summary, no preamble:\n\n${text.slice(0, 12000)}`;
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 
 async function callOpenAI(text, key) {
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
     method:"POST",
     headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${key}` },
     body: JSON.stringify({
+<<<<<<< HEAD
       model:"gpt-4o-mini", max_tokens:600,
       messages:[
         { role:"system", content:"You are a helpful summarization assistant. Return only the summary, no preamble." },
+=======
+      model:"gpt-4o", max_tokens:500,
+      messages:[
+        { role:"system", content:"You are a concise summarization assistant." },
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
         { role:"user",   content:PROMPT(text) },
       ],
     }),
@@ -297,6 +395,7 @@ async function callOpenAI(text, key) {
   return { summary: d.choices[0].message.content };
 }
 
+<<<<<<< HEAD
 // FIXED: use gemini-2.0-flash as primary, fall back to gemini-1.5-flash-latest
 async function callGemini(text, key) {
   const models = [
@@ -351,6 +450,17 @@ async function callGemini(text, key) {
   }
 
   throw lastError || new Error("No working Gemini model found. Check your API key at aistudio.google.com");
+=======
+async function callGemini(text, key) {
+  const r = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+    { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ contents:[{ parts:[{ text: PROMPT(text) }] }] }) }
+  );
+  if (!r.ok) { const e=await r.json().catch(()=>({})); throw new Error(e?.error?.message||`Gemini ${r.status}`); }
+  const d = await r.json();
+  return { summary: d.candidates[0].content.parts[0].text };
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 }
 
 async function callAnthropic(text, key) {
@@ -358,7 +468,11 @@ async function callAnthropic(text, key) {
     method:"POST",
     headers:{ "Content-Type":"application/json", "x-api-key":key, "anthropic-version":"2023-06-01" },
     body: JSON.stringify({
+<<<<<<< HEAD
       model:"claude-haiku-4-5-20251001", max_tokens:600,
+=======
+      model:"claude-3-5-haiku-20241022", max_tokens:500,
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
       messages:[{ role:"user", content:PROMPT(text) }],
     }),
   });
@@ -372,7 +486,11 @@ async function callMistral(text, key) {
     method:"POST",
     headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${key}` },
     body: JSON.stringify({
+<<<<<<< HEAD
       model:"mistral-small-latest", max_tokens:600,
+=======
+      model:"mistral-small-latest", max_tokens:500,
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
       messages:[{ role:"user", content:PROMPT(text) }],
     }),
   });
@@ -386,9 +504,15 @@ async function callGroq(text, key) {
     method:"POST",
     headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${key}` },
     body: JSON.stringify({
+<<<<<<< HEAD
       model:"llama3-8b-8192", max_tokens:600,
       messages:[
         { role:"system", content:"You are a concise summarization assistant. Return only the summary, no preamble." },
+=======
+      model:"llama3-8b-8192", max_tokens:500,
+      messages:[
+        { role:"system", content:"You are a concise summarization assistant." },
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
         { role:"user",   content:PROMPT(text) },
       ],
     }),
@@ -403,7 +527,11 @@ async function callCohere(text, key) {
     method:"POST",
     headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${key}` },
     body: JSON.stringify({
+<<<<<<< HEAD
       model:"command-r", max_tokens:600,
+=======
+      model:"command-r", max_tokens:500,
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
       messages:[{ role:"user", content:PROMPT(text) }],
     }),
   });
@@ -417,12 +545,17 @@ const CLOUD_CALLERS = { openai:callOpenAI, gemini:callGemini, anthropic:callAnth
 
 async function callCloud(provider, text) {
   const key = state.keys[provider];
+<<<<<<< HEAD
   if (!key) throw new Error(`No ${provider} API key saved. Go to Settings to add it.`);
+=======
+  if (!key) throw new Error(`No ${provider} API key saved. Go to Settings ⚙ to add it.`);
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
   const fn = CLOUD_CALLERS[provider];
   if (!fn) throw new Error(`Unknown provider: ${provider}`);
   return fn(text, key);
 }
 
+<<<<<<< HEAD
 // ── SUMMARIZE PAGE ────────────────────────────────────────────────────────────
 $("summarize-btn").addEventListener("click", async () => {
   hideError($("error-box"));
@@ -431,11 +564,24 @@ $("summarize-btn").addEventListener("click", async () => {
 
   if (!state.pageText) {
     showError($("error-box"), "No page content found. Try clicking ↺ to refresh.");
+=======
+// ── summarize page ────────────────────────────────────────────────────────────
+summarizeBtn.addEventListener("click", async () => {
+  hideError(errorBox);
+  resultBox.classList.remove("visible");
+
+  if (!state.pageText) {
+    showError(errorBox, "No page content found. Try clicking ↺ to refresh.");
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
     return;
   }
 
   const { provider, model } = parseModelSelect($("model-select").value);
+<<<<<<< HEAD
   setLoading($("summarize-btn"), true);
+=======
+  setLoading(summarizeBtn, true);
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 
   try {
     let data;
@@ -443,7 +589,11 @@ $("summarize-btn").addEventListener("click", async () => {
       if (!state.serverOnline) {
         const online = await checkServer();
         if (!online) throw new Error(
+<<<<<<< HEAD
           "Local server is offline.\nRun this in your project folder:\n\n  uvicorn main:app --port 5001"
+=======
+          "Local server is offline.\nRun this in your summary_service folder:\n\n  uvicorn main:app --port 5001"
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
         );
       }
       data = await callLocalModel(state.pageText, model);
@@ -453,6 +603,7 @@ $("summarize-btn").addEventListener("click", async () => {
       displayResults(data, true);
     }
   } catch (err) {
+<<<<<<< HEAD
     showError($("error-box"), err.message || String(err));
   } finally {
     setLoading($("summarize-btn"), false);
@@ -468,6 +619,24 @@ const uploadError = $("upload-error-box");
 
 dropZone.addEventListener("click", () => fileInput.click());
 dropZone.addEventListener("dragover",  e => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+=======
+    showError(errorBox, err.message || String(err));
+  } finally {
+    setLoading(summarizeBtn, false);
+  }
+});
+
+// ── upload panel ──────────────────────────────────────────────────────────────
+const dropZone     = $("drop-zone");
+const fileInput    = $("file-input");
+const filePreview  = $("file-preview");
+const uploadBtn    = $("upload-summarize-btn");
+const uploadError  = $("upload-error-box");
+const uploadResult = $("upload-result-container");
+
+dropZone.addEventListener("click", () => fileInput.click());
+dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
 dropZone.addEventListener("drop", e => {
   e.preventDefault(); dropZone.classList.remove("drag-over");
@@ -489,15 +658,23 @@ function setFile(file) {
 $("remove-file-btn").addEventListener("click", () => {
   state.selectedFile = null; fileInput.value = "";
   filePreview.classList.remove("visible");
+<<<<<<< HEAD
   uploadBtn.disabled = true;
   $("upload-result-container").style.display = "none";
+=======
+  uploadBtn.disabled = true; uploadResult.style.display = "none";
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 });
 
 uploadBtn.addEventListener("click", async () => {
   if (!state.selectedFile) return;
+<<<<<<< HEAD
   hideError(uploadError);
   $("upload-result-container").style.display = "none";
   stopSpeechUpload();
+=======
+  hideError(uploadError); uploadResult.style.display = "none";
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
   setLoading(uploadBtn, true);
 
   const { provider, model } = parseModelSelect($("upload-model-select").value);
@@ -513,21 +690,38 @@ uploadBtn.addEventListener("click", async () => {
       form.append("file", state.selectedFile, state.selectedFile.name);
       form.append("model", model);
       const r = await fetch(`${state.serverUrl}/summarize`, { method:"POST", body:form });
+<<<<<<< HEAD
       if (!r.ok) throw new Error(`Server error ${r.status}: ${await r.text()}`);
+=======
+      if (!r.ok) {
+        const body = await r.text();
+        throw new Error(`Server error ${r.status}: ${body}`);
+      }
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
       const d = await r.json();
       summary = d.final_summary || d.summary || "";
     } else {
       if (state.selectedFile.name.endsWith(".pdf")) {
         throw new Error(
+<<<<<<< HEAD
           "PDF uploads to cloud APIs need the local server to extract text.\n" +
           "Either use a Local Model, or convert your PDF to .txt first."
+=======
+          "PDF uploads to cloud APIs require the local server to extract text.\n" +
+          "Either: use a Local Model, or convert your PDF to .txt first."
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
         );
       }
       const text = await readFileAsText(state.selectedFile);
       const d = await callCloud(model, text);
       summary = d.summary;
     }
+<<<<<<< HEAD
     displayUploadResult(summary);
+=======
+    $("upload-text-final").textContent = summary;
+    uploadResult.style.display = "flex";
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
   } catch (err) {
     showError(uploadError, err.message || String(err));
   } finally {
@@ -544,6 +738,7 @@ function readFileAsText(file) {
   });
 }
 
+<<<<<<< HEAD
 // ── VOICE / TTS ───────────────────────────────────────────────────────────────
 function stopSpeech() {
   if (speechSynthesis.speaking) speechSynthesis.cancel();
@@ -701,12 +896,31 @@ $("btn-export-upload-md").addEventListener("click", () => {
 });
 
 // ── API KEY SAVE & VALIDATE ────────────────────────────────────────────────────
+=======
+// ── copy buttons ──────────────────────────────────────────────────────────────
+document.addEventListener("click", e => {
+  const btn = e.target.closest(".copy-btn[data-target]");
+  if (!btn) return;
+  const el = $(btn.dataset.target);
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = "copied!";
+    setTimeout(() => btn.textContent = orig, 1500);
+  });
+});
+
+// ── settings ──────────────────────────────────────────────────────────────────
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 document.querySelectorAll(".key-save-btn").forEach(btn => {
   btn.addEventListener("click", async () => {
     const provider = btn.dataset.key;
     const val = $(`key-${provider}`).value.trim();
     if (!val || val === "••••••••••••") return;
+<<<<<<< HEAD
 
+=======
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
     state.keys[provider] = val;
     await chrome.storage.local.set({ keys: state.keys });
     $(`key-${provider}`).value = "••••••••••••";
@@ -714,6 +928,7 @@ document.querySelectorAll(".key-save-btn").forEach(btn => {
     enableCloudOption(provider);
     btn.textContent = "✓";
     setTimeout(() => btn.textContent = "Save", 1500);
+<<<<<<< HEAD
 
     // Validate key
     await validateKey(provider, val);
@@ -797,6 +1012,11 @@ async function validateKey(provider, key) {
 }
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
+=======
+  });
+});
+
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 $("test-server-btn").addEventListener("click", async () => {
   const url = $("server-url-input").value.trim();
   state.serverUrl = url;
@@ -812,14 +1032,25 @@ $("clear-keys-btn").addEventListener("click", async () => {
     $(`key-${k}`).value = "";
     $(`badge-${k}`).classList.remove("visible");
   });
+<<<<<<< HEAD
   showToast("All keys cleared");
+=======
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 });
 
 $("refresh-btn").addEventListener("click", grabPageContent);
 
+<<<<<<< HEAD
 // ── INIT ───────────────────────────────────────────────────────────────────────
+=======
+// ── init ──────────────────────────────────────────────────────────────────────
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
 (async () => {
   await loadSettings();
   await Promise.all([checkServer(), grabPageContent()]);
   setInterval(checkServer, 30_000);
+<<<<<<< HEAD
 })();
+=======
+})();
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
