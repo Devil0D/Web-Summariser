@@ -20,6 +20,23 @@ function extractPageText() {
   return raw.replace(/\s+/g, " ").trim();
 }
 
+function publishPageContent() {
+  chrome.runtime.sendMessage({
+    type:  "PAGE_CONTENT",
+    title: document.title,
+    url:   window.location.href,
+    text:  extractPageText(),
+  });
+}
+
+let publishTimer = null;
+function publishPageContentDebounced(delay = 200) {
+  clearTimeout(publishTimer);
+  publishTimer = setTimeout(() => {
+    publishPageContent();
+  }, delay);
+}
+
 // Send page info to the sidebar whenever the sidebar asks for it
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "GET_PAGE_CONTENT") {
@@ -34,11 +51,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Also push content automatically on page load (sidebar may already be open)
-window.addEventListener("load", () => {
-  chrome.runtime.sendMessage({
-    type:  "PAGE_CONTENT",
-    title: document.title,
-    url:   window.location.href,
-    text:  extractPageText(),
-  });
+window.addEventListener("load", () => publishPageContentDebounced(100));
+window.addEventListener("pageshow", () => publishPageContentDebounced(100));
+window.addEventListener("hashchange", () => publishPageContentDebounced(150));
+window.addEventListener("popstate", () => publishPageContentDebounced(150));
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    publishPageContentDebounced(100);
+  }
 });
+
+// SPA navigations often use history API without full page reload.
+const _pushState = history.pushState;
+history.pushState = function () {
+  const ret = _pushState.apply(this, arguments);
+  publishPageContentDebounced(150);
+  return ret;
+};
+
+const _replaceState = history.replaceState;
+history.replaceState = function () {
+  const ret = _replaceState.apply(this, arguments);
+  publishPageContentDebounced(150);
+  return ret;
+};

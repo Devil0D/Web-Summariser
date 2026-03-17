@@ -12,10 +12,7 @@ from fastapi import FastAPI, Form, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import io, logging, warnings
-<<<<<<< HEAD
 import re
-=======
->>>>>>> 65459a273944037978469feb854b5e7588d50575
 import pypdf  # already in your project — no new install needed
 
 warnings.filterwarnings("ignore")
@@ -69,7 +66,6 @@ def _extract_pdf_text(data: bytes) -> str:
 def _extract_txt_text(data: bytes) -> str:
     return data.decode("utf-8", errors="ignore")
 
-<<<<<<< HEAD
 def _normalize_text(text: str) -> str:
     return re.sub(r"\s+", " ", text or "").strip()
 
@@ -142,16 +138,6 @@ def _build_combined(text: str):
     golden_raw = _normalize_text(extractive_summary(combined))
     golden = _format_summary(golden_raw)
     return bart_out, t5_out, lex_out, golden, golden_raw
-=======
-def _build_combined(text: str):
-    """Run all three models and combine — matches original Flask behaviour."""
-    bart_out = bart_summary(text)
-    t5_out   = t5_summary(text)
-    lex_out  = extractive_summary(text)
-    combined = f"{bart_out} {t5_out} {lex_out}"
-    golden   = extractive_summary(combined)
-    return bart_out, t5_out, lex_out, golden
->>>>>>> 65459a273944037978469feb854b5e7588d50575
 
 
 # ── routes ────────────────────────────────────────────────────────────────────
@@ -207,11 +193,7 @@ async def summarize(
     text_to_summarize = _truncate(text_to_summarize)
 
     try:
-<<<<<<< HEAD
         bart_out, t5_out, lex_out, golden, golden_raw = _build_combined(text_to_summarize)
-=======
-        bart_out, t5_out, lex_out, golden = _build_combined(text_to_summarize)
->>>>>>> 65459a273944037978469feb854b5e7588d50575
     except Exception as e:
         logging.exception("Summarization failed")
         raise HTTPException(500, f"Failed to process the request: {e}")
@@ -221,10 +203,7 @@ async def summarize(
         "t5_summary":         t5_out,
         "extractive_summary": lex_out,
         "final_summary":      golden,
-<<<<<<< HEAD
         "raw_final_summary":  golden_raw,
-=======
->>>>>>> 65459a273944037978469feb854b5e7588d50575
     }
 
 
@@ -249,16 +228,10 @@ def summarize_selective(req: SelectiveRequest):
         elif model == "lexrank":
             return {"summary": extractive_summary(text), "model_used": "lexrank"}
         elif model == "combined":
-<<<<<<< HEAD
             bart_out, t5_out, lex_out, golden, golden_raw = _build_combined(text)
             return {
                 "summary":            golden,
                 "raw_summary":        golden_raw,
-=======
-            bart_out, t5_out, lex_out, golden = _build_combined(text)
-            return {
-                "summary":            golden,
->>>>>>> 65459a273944037978469feb854b5e7588d50575
                 "model_used":         "combined",
                 "bart_summary":       bart_out,
                 "t5_summary":         t5_out,

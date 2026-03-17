@@ -1,10 +1,6 @@
 import { DataTypes, Model } from "sequelize";
 import { sequelize } from "../database";
 
-sequelize.authenticate().then(() => {
-  console.log("Folder Database connected");
-});
-
 export class Folder extends Model {
   public ID!: number;
   public Folder_Name!: string;
