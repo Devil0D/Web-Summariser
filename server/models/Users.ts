@@ -1,10 +1,6 @@
 import { DataTypes, Model } from "sequelize";
 import { sequelize } from "../database";
 
-//Authenticating Database Connected
-sequelize.authenticate().then(() => {
-  console.log("Database connected");
-});
 export class User extends Model {
   public ID!: number;
   public Username!: string;

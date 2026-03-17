@@ -13,6 +13,9 @@ import cookieParser from "cookie-parser";
 dotenv.config();
 
 const app = express();
+const port = Number(process.env.PORT) || 5000;
+const allowStartWithoutDb = process.env.ALLOW_START_WITHOUT_DB === "true";
+
 app.use((req, res, next) => {
   console.log(`Incoming Request: ${req.method} ${req.originalUrl}`);
   next();
@@ -47,8 +50,25 @@ app.use("/websears/folders", folderRoutes);
 app.use("/websears/chat", chatRoutes);
 app.use("/websears/conversations", conversationsRoutes);
 
-sequelize.sync({}).then(() => {
-  app.listen(5000, () => {
-    console.log(`Server running on port 5000`);
+sequelize
+  .sync({})
+  .then(() => {
+    app.listen(port, () => {
+      console.log(`Server running on port ${port}`);
+    });
+  })
+  .catch((error) => {
+    console.error("Database connection failed.");
+    console.error("Check DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS in server/.env");
+    console.error(error);
+
+    if (allowStartWithoutDb) {
+      console.warn("ALLOW_START_WITHOUT_DB=true, starting server without DB sync.");
+      app.listen(port, () => {
+        console.log(`Server running on port ${port} (without database)`);
+      });
+      return;
+    }
+
+    process.exit(1);
   });
-});

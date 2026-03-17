@@ -3,7 +3,7 @@
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
- async function apiFetch(endpoint: string, options: RequestInit = {}) {
+async function apiFetch(endpoint: string, options: RequestInit = {}) {
   const isFormData = options.body instanceof FormData;
 
   const config: RequestInit = {
@@ -17,14 +17,17 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+    const contentType = response.headers.get("content-type");
+    const isJson = contentType?.includes("application/json");
+    const responseBody = isJson ? await response.json() : undefined;
 
     if (!response.ok) {
-      throw new Error(`API Error: ${response.statusText}`);
+      const message = responseBody?.message || `API Error: ${response.statusText}`;
+      throw new Error(message);
     }
 
-    const contentType = response.headers.get("content-type");
-    if (contentType?.includes("application/json")) {
-      return response.json();
+    if (isJson) {
+      return responseBody;
     }
     return;
   } catch (err: any) {

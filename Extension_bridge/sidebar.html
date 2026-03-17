@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Websears</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+<<<<<<< HEAD
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet" />
+=======
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+<<<<<<< HEAD
+      --bg:           #f5f0eb;
+      --surface:      #fdfaf7;
+      --surface2:     #f0ebe4;
+      --border:       #e0d8ce;
+      --border-soft:  #ede7de;
+      --accent:       #7c6d5e;
+      --accent-light: #a8937e;
+      --accent-warm:  #c4956a;
+      --success:      #5a9e7a;
+      --warn:         #d4914a;
+      --error:        #c0545a;
+      --text:         #3d3530;
+      --text-dim:     #7a6b5e;
+      --text-muted:   #b0a090;
+      --radius:       12px;
+      --radius-sm:    8px;
+      --font-body:    'Nunito', sans-serif;
+      --font-display: 'Playfair Display', Georgia, serif;
+      --shadow-sm:    0 1px 3px rgba(100,80,60,0.08);
+      --shadow:       0 2px 8px rgba(100,80,60,0.12);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 13px;
+      line-height: 1.6;
+      overflow: hidden;
+    }
+
+    #app { display: flex; flex-direction: column; height: 100vh; }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 13px 16px 11px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border-soft);
+      flex-shrink: 0;
+      box-shadow: var(--shadow-sm);
+    }
+    .logo { font-family: var(--font-display); font-size: 17px; color: var(--accent); letter-spacing: -0.01em; }
+    .logo span { color: var(--accent-warm); }
+    .header-actions { display: flex; gap: 5px; align-items: center; }
+    .icon-btn {
+      background: none; border: 1px solid var(--border); border-radius: 7px;
+      color: var(--text-dim); cursor: pointer; padding: 5px 9px; font-size: 13px;
+      transition: all 0.18s; font-family: var(--font-body);
+    }
+    .icon-btn:hover { border-color: var(--accent-warm); color: var(--accent-warm); background: rgba(196,149,106,0.06); }
+
+    #status-bar {
+      display: flex; align-items: center; gap: 8px; padding: 7px 16px;
+      background: var(--surface2); border-bottom: 1px solid var(--border-soft);
+      font-size: 11px; color: var(--text-muted); flex-shrink: 0;
+    }
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--error);
+      flex-shrink: 0; transition: background 0.3s;
+    }
+    .status-dot.ok { background: var(--success); }
+    .status-dot.checking { background: var(--warn); animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    #page-title {
+      flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-size: 11px; color: var(--text-muted); margin-left: auto;
+      text-align: right; max-width: 55%;
+    }
+
+    #tabs { display: flex; border-bottom: 1px solid var(--border-soft); background: var(--surface); flex-shrink: 0; }
+    .tab {
+      flex: 1; padding: 9px 4px; text-align: center;
+      font-size: 11px; color: var(--text-muted); cursor: pointer;
+      border-bottom: 2px solid transparent; transition: all 0.18s;
+      letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600;
+    }
+    .tab:hover { color: var(--text-dim); }
+    .tab.active { color: var(--accent-warm); border-bottom-color: var(--accent-warm); }
+
+    .panel { display: none; flex: 1; overflow-y: auto; padding: 13px 14px; }
+    .panel.active { display: flex; flex-direction: column; gap: 11px; }
+
+    #page-info-card {
+      background: linear-gradient(135deg, #fef9f4 0%, #f5ede3 100%);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 11px 13px; box-shadow: var(--shadow-sm);
+    }
+    .page-info-title {
+      font-family: var(--font-display); font-size: 13px; color: var(--text);
+      margin-bottom: 3px; line-height: 1.35;
+    }
+    .page-info-url { font-size: 10px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .page-info-meta { margin-top: 6px; font-size: 10px; color: var(--accent-light); font-weight: 600; }
+
+    label {
+      font-size: 10px; color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 0.07em; display: block; margin-bottom: 5px; font-weight: 700;
+    }
+    select, input[type="text"], input[type="password"] {
+      width: 100%; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text); font-family: var(--font-body);
+      font-size: 12px; padding: 8px 10px; outline: none;
+      transition: border-color 0.18s, box-shadow 0.18s; box-shadow: var(--shadow-sm);
+    }
+    select:focus, input:focus {
+      border-color: var(--accent-warm); box-shadow: 0 0 0 3px rgba(196,149,106,0.12);
+    }
+    select option { background: var(--surface); }
+
+    .btn {
+      border: none; border-radius: var(--radius-sm); cursor: pointer;
+      font-family: var(--font-body); font-size: 12px; padding: 9px 16px;
+      transition: all 0.18s; display: flex; align-items: center;
+      gap: 6px; justify-content: center; font-weight: 600;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-warm), #b87850);
+      color: #fff; box-shadow: 0 2px 6px rgba(196,149,106,0.3);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #d4a070, var(--accent-warm));
+      box-shadow: 0 3px 10px rgba(196,149,106,0.4); transform: translateY(-1px);
+    }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-ghost { background: var(--surface); color: var(--text-dim); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent-warm); color: var(--accent-warm); background: rgba(196,149,106,0.05); }
+    .btn-full { width: 100%; }
+    .btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 6px; }
+
+    .spinner {
+      width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.7s linear infinite; display: none;
+    }
+    .spinning .spinner { display: block; }
+    .spinning .btn-label { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #result-container { display: none; flex-direction: column; gap: 10px; }
+    #result-container.visible { display: flex; }
+
+    .result-section {
+      background: var(--surface); border: 1px solid var(--border-soft);
+      border-radius: var(--radius); overflow: hidden;
+      box-shadow: var(--shadow-sm); transition: box-shadow 0.2s;
+    }
+    .result-section:hover { box-shadow: var(--shadow); }
+
+    .result-section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px; border-bottom: 1px solid var(--border-soft);
+      background: var(--surface2);
+    }
+    .result-section-title {
+      font-size: 10px; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--accent); font-weight: 700;
+    }
+    .result-section-body { padding: 12px 13px; font-size: 12px; line-height: 1.75; color: var(--text); }
+
+    /* FORMATTED SUMMARY */
+    .sum-points { list-style: none; padding: 0; margin: 0; }
+    .sum-points li {
+      display: flex; gap: 8px; margin-bottom: 7px;
+      font-size: 12px; line-height: 1.6; color: var(--text);
+      padding-bottom: 7px; border-bottom: 1px solid var(--border-soft);
+    }
+    .sum-points li:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .sum-points li::before {
+      content: "◆"; color: var(--accent-warm); font-size: 8px; margin-top: 5px; flex-shrink: 0;
+    }
+    .sum-intro {
+      font-family: var(--font-display); font-size: 13px; color: var(--text);
+      margin-bottom: 10px; line-height: 1.5; padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .view-toggle {
+      display: flex; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; overflow: hidden;
+    }
+    .view-toggle button {
+      background: none; border: none; color: var(--text-muted); cursor: pointer;
+      font-family: var(--font-body); font-size: 10px; font-weight: 600;
+      padding: 3px 8px; transition: all 0.15s;
+    }
+    .view-toggle button.active { background: var(--surface); color: var(--accent-warm); }
+
+    .result-actions {
+      display: flex; gap: 6px; padding: 8px 12px; flex-wrap: wrap;
+      border-top: 1px solid var(--border-soft); background: var(--surface2);
+    }
+    .action-btn {
+      display: flex; align-items: center; gap: 4px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text-dim); cursor: pointer;
+      font-family: var(--font-body); font-size: 10px; font-weight: 600;
+      padding: 4px 9px; transition: all 0.18s; letter-spacing: 0.03em;
+    }
+    .action-btn:hover { border-color: var(--accent-warm); color: var(--accent-warm); background: rgba(196,149,106,0.06); }
+    .action-btn.speaking { border-color: var(--success); color: var(--success); background: rgba(90,158,122,0.08); }
+
+    .voice-wave { display: none; align-items: center; gap: 2px; height: 12px; margin-left: 2px; }
+    .voice-wave.active { display: flex; }
+    .voice-wave span {
+      display: block; width: 2px; background: var(--success); border-radius: 2px;
+      animation: voiceWave 0.8s ease-in-out infinite;
+    }
+    .voice-wave span:nth-child(2) { animation-delay: 0.1s; }
+    .voice-wave span:nth-child(3) { animation-delay: 0.2s; }
+    .voice-wave span:nth-child(4) { animation-delay: 0.15s; }
+    .voice-wave span:nth-child(5) { animation-delay: 0.05s; }
+    @keyframes voiceWave { 0%,100%{height:3px} 50%{height:12px} }
+
+    .error-box {
+      background: rgba(192,84,90,0.07); border: 1px solid rgba(192,84,90,0.3);
+      border-radius: var(--radius); padding: 10px 12px;
+      font-size: 11px; color: var(--error); display: none; white-space: pre-wrap; line-height: 1.5;
+    }
+    .error-box.visible { display: block; }
+
+    #drop-zone {
+      border: 1.5px dashed var(--border); border-radius: var(--radius);
+      padding: 20px; text-align: center; color: var(--text-muted); font-size: 11px;
+      cursor: pointer; transition: all 0.2s;
+      background: linear-gradient(135deg, var(--surface), var(--surface2));
+    }
+    #drop-zone:hover, #drop-zone.drag-over {
+      border-color: var(--accent-warm); color: var(--accent-warm); background: rgba(196,149,106,0.05);
+    }
+    #drop-zone .drop-icon { font-size: 22px; margin-bottom: 6px; }
+    #file-preview {
+      display: none; background: var(--surface); border: 1px solid var(--border-soft);
+      border-radius: var(--radius); padding: 9px 12px;
+      font-size: 11px; color: var(--text-dim); align-items: center; justify-content: space-between;
+    }
+    #file-preview.visible { display: flex; }
+
+    .settings-group {
+      background: var(--surface); border: 1px solid var(--border-soft);
+      border-radius: var(--radius); padding: 13px; box-shadow: var(--shadow-sm);
+    }
+    .settings-group-title {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--accent); margin-bottom: 12px; font-weight: 700;
+    }
+    .settings-row { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+    .settings-row:last-child { margin-bottom: 0; }
+
+    .provider-label { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+    .provider-logo {
+      width: 16px; height: 16px; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 700; flex-shrink: 0;
+    }
+    .logo-openai    { background: #10a37f; color: #fff; }
+    .logo-gemini    { background: #4285f4; color: #fff; }
+    .logo-anthropic { background: #d97706; color: #fff; }
+    .logo-mistral   { background: #7c3aed; color: #fff; }
+    .logo-cohere    { background: #39d353; color: #111; }
+    .logo-groq      { background: #f55036; color: #fff; }
+
+    .key-input-wrap { position: relative; }
+    .key-input-wrap input { padding-right: 68px; }
+    .key-save-btn {
+      position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+      background: rgba(196,149,106,0.12); border: none; border-radius: 5px;
+      color: var(--accent-warm); cursor: pointer; font-family: var(--font-body);
+      font-size: 10px; font-weight: 700; padding: 4px 8px; transition: background 0.15s;
+    }
+    .key-save-btn:hover { background: var(--accent-warm); color: #fff; }
+
+    .saved-badge { display: none; font-size: 10px; color: var(--success); font-weight: 600; }
+    .saved-badge.visible { display: inline; }
+
+    .key-status { font-size: 10px; margin-top: 3px; display: none; font-weight: 600; }
+    .key-status.testing { display: block; color: var(--warn); }
+    .key-status.ok      { display: block; color: var(--success); }
+    .key-status.fail    { display: block; color: var(--error); }
+
+    .provider-hint { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+    .provider-hint a { color: var(--accent-warm); text-decoration: none; }
+    .provider-hint a:hover { text-decoration: underline; }
+
+    .inline-row { display: flex; gap: 6px; }
+    .inline-row input { flex: 1; }
+
+    /* breakdown collapsible */
+    .breakdown-header {
+      cursor: pointer; user-select: none;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px; background: var(--surface2);
+    }
+    .breakdown-header .chevron { font-size: 9px; color: var(--text-muted); transition: transform 0.2s; }
+    .breakdown-header.open .chevron { transform: rotate(180deg); }
+    .breakdown-content { overflow: hidden; transition: max-height 0.3s ease; max-height: 0; }
+    .breakdown-content.open { max-height: 600px; }
+
+    .model-tag {
+      display: inline-block; font-size: 9px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      padding: 2px 7px; border-radius: 4px; margin-bottom: 5px;
+    }
+    .tag-bart    { background: rgba(184,120,80,0.15); color: #904a20; }
+    .tag-t5      { background: rgba(90,158,122,0.15); color: #2a7e5a; }
+    .tag-lexrank { background: rgba(101,90,160,0.15); color: #4535a0; }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent-light); }
+
+    #toast {
+      position: fixed; bottom: 16px; left: 50%;
+      transform: translateX(-50%) translateY(60px);
+      background: var(--accent); color: #fff; font-size: 11px; font-weight: 600;
+      padding: 7px 16px; border-radius: 20px; box-shadow: var(--shadow);
+      transition: transform 0.25s ease; pointer-events: none; z-index: 999;
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+=======
+      --bg:          #0f1117;
+      --surface:     #181b25;
+      --surface2:    #1f2333;
+      --border:      #2a2f45;
+      --accent:      #4f7cff;
+      --accent-dim:  #2a3f7a;
+      --success:     #3ecf8e;
+      --warn:        #f5a623;
+      --error:       #e05252;
+      --text:        #e8eaf0;
+      --text-dim:    #7b8099;
+      --text-muted:  #454c66;
+      --radius:      10px;
+      --font-display: 'DM Serif Display', Georgia, serif;
+      --font-mono:    'DM Mono', 'Courier New', monospace;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text);
+      font-family: var(--font-mono); font-size: 13px; line-height: 1.6; overflow: hidden; }
+
+    #app { display: flex; flex-direction: column; height: 100vh; }
+
+    /* header */
+    header { display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px 12px; border-bottom: 1px solid var(--border);
+      background: var(--surface); flex-shrink: 0; }
+    .logo { font-family: var(--font-display); font-size: 18px; letter-spacing: -0.02em; }
+    .logo span { color: var(--accent); }
+    .header-actions { display: flex; gap: 6px; align-items: center; }
+    .icon-btn { background: none; border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text-dim); cursor: pointer; padding: 5px 8px; font-size: 13px; transition: all 0.15s; }
+    .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* status */
+    #status-bar { display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+      background: var(--surface2); border-bottom: 1px solid var(--border);
+      font-size: 11px; color: var(--text-dim); flex-shrink: 0; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--error);
+      flex-shrink: 0; transition: background 0.3s; }
+    .status-dot.ok { background: var(--success); }
+    .status-dot.checking { background: var(--warn); animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    #page-title { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+      font-size:11px; color:var(--text-dim); margin-left: auto; text-align: right; max-width: 55%; }
+
+    /* tabs */
+    #tabs { display:flex; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0; }
+    .tab { flex:1; padding:10px 4px; text-align:center; font-size:11px; color:var(--text-muted);
+      cursor:pointer; border-bottom:2px solid transparent; transition:all 0.15s;
+      letter-spacing:0.06em; text-transform:uppercase; }
+    .tab:hover { color:var(--text-dim); }
+    .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+    /* panels */
+    .panel { display:none; flex:1; overflow-y:auto; padding:14px 16px; }
+    .panel.active { display:flex; flex-direction:column; gap:12px; }
+
+    /* page info */
+    #page-info-card { background:var(--surface2); border:1px solid var(--border);
+      border-radius:var(--radius); padding:12px 14px; }
+    .page-info-title { font-family:var(--font-display); font-size:14px; color:var(--text);
+      margin-bottom:4px; line-height:1.3; }
+    .page-info-url { font-size:10px; color:var(--text-muted); overflow:hidden;
+      text-overflow:ellipsis; white-space:nowrap; }
+    .page-info-meta { margin-top:8px; font-size:10px; color:var(--text-muted); }
+
+    /* form controls */
+    label { font-size:10px; color:var(--text-muted); text-transform:uppercase;
+      letter-spacing:0.08em; display:block; margin-bottom:5px; }
+    select, input[type="text"], input[type="password"], textarea {
+      width:100%; background:var(--surface2); border:1px solid var(--border);
+      border-radius:6px; color:var(--text); font-family:var(--font-mono);
+      font-size:12px; padding:8px 10px; outline:none; transition:border-color 0.15s; }
+    select:focus, input:focus, textarea:focus { border-color:var(--accent); }
+    select option { background:var(--surface2); }
+
+    /* buttons */
+    .btn { border:none; border-radius:7px; cursor:pointer; font-family:var(--font-mono);
+      font-size:12px; padding:9px 16px; transition:all 0.15s;
+      display:flex; align-items:center; gap:6px; justify-content:center; }
+    .btn-primary { background:var(--accent); color:#fff; font-weight:500; }
+    .btn-primary:hover { background:#6b91ff; }
+    .btn-primary:disabled { opacity:0.45; cursor:not-allowed; }
+    .btn-ghost { background:var(--surface2); color:var(--text-dim); border:1px solid var(--border); }
+    .btn-ghost:hover { border-color:var(--accent); color:var(--accent); }
+    .btn-full { width:100%; }
+
+    /* spinner */
+    .spinner { width:14px; height:14px; border:2px solid rgba(255,255,255,0.2);
+      border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:none; }
+    .spinning .spinner { display:block; }
+    .spinning .btn-label { display:none; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* results */
+    #result-container { display:none; flex-direction:column; gap:10px; }
+    #result-container.visible { display:flex; }
+    .result-section { background:var(--surface2); border:1px solid var(--border);
+      border-radius:var(--radius); overflow:hidden; }
+    .result-section-header { display:flex; align-items:center; justify-content:space-between;
+      padding:8px 12px; border-bottom:1px solid var(--border); }
+    .result-section-title { font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-dim); }
+    .result-section-body { padding:12px; font-size:12px; line-height:1.7; color:var(--text); }
+    .copy-btn { background:none; border:none; color:var(--text-muted); cursor:pointer;
+      font-size:10px; padding:2px 6px; border-radius:4px; transition:color 0.15s; }
+    .copy-btn:hover { color:var(--accent); }
+
+    /* error */
+    .error-box { background:rgba(224,82,82,0.1); border:1px solid var(--error);
+      border-radius:var(--radius); padding:12px; font-size:12px; color:#f08080;
+      display:none; white-space:pre-wrap; }
+    .error-box.visible { display:block; }
+
+    /* drop zone */
+    #drop-zone { border:1.5px dashed var(--border); border-radius:var(--radius);
+      padding:20px; text-align:center; color:var(--text-muted); font-size:11px;
+      cursor:pointer; transition:all 0.2s; }
+    #drop-zone:hover, #drop-zone.drag-over { border-color:var(--accent); color:var(--accent);
+      background:rgba(79,124,255,0.05); }
+    #drop-zone .drop-icon { font-size:22px; margin-bottom:6px; }
+    #file-preview { display:none; background:var(--surface2); border:1px solid var(--border);
+      border-radius:var(--radius); padding:10px 12px; font-size:11px; color:var(--text-dim);
+      align-items:center; justify-content:space-between; }
+    #file-preview.visible { display:flex; }
+
+    /* settings */
+    .settings-group { background:var(--surface2); border:1px solid var(--border);
+      border-radius:var(--radius); padding:14px; }
+    .settings-group-title { font-size:10px; text-transform:uppercase; letter-spacing:0.1em;
+      color:var(--text-muted); margin-bottom:12px; }
+    .settings-row { display:flex; flex-direction:column; gap:5px; margin-bottom:12px; }
+    .settings-row:last-child { margin-bottom:0; }
+
+    /* provider rows with logo */
+    .provider-label { display:flex; align-items:center; gap:7px; margin-bottom:5px; }
+    .provider-logo { width:15px; height:15px; border-radius:3px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:9px; font-weight:700; flex-shrink:0; }
+    .logo-openai    { background:#10a37f; color:#fff; }
+    .logo-gemini    { background:#4285f4; color:#fff; }
+    .logo-anthropic { background:#d97706; color:#fff; }
+    .logo-mistral   { background:#7c3aed; color:#fff; }
+    .logo-cohere    { background:#39d353; color:#111; }
+    .logo-groq      { background:#f55036; color:#fff; }
+    .logo-copilot   { background:#0078d4; color:#fff; }
+
+    .key-input-wrap { position:relative; }
+    .key-input-wrap input { padding-right:68px; }
+    .key-save-btn { position:absolute; right:4px; top:50%; transform:translateY(-50%);
+      background:var(--accent-dim); border:none; border-radius:4px; color:var(--accent);
+      cursor:pointer; font-family:var(--font-mono); font-size:10px; padding:4px 8px;
+      transition:background 0.15s; }
+    .key-save-btn:hover { background:var(--accent); color:#fff; }
+
+    .saved-badge { display:none; font-size:10px; color:var(--success); }
+    .saved-badge.visible { display:inline; }
+
+    .provider-hint { font-size:10px; color:var(--text-muted); margin-top:3px; }
+    .provider-hint a { color:var(--accent); text-decoration:none; }
+    .provider-hint a:hover { text-decoration:underline; }
+
+    .inline-row { display:flex; gap:6px; }
+    .inline-row input { flex:1; }
+
+    ::-webkit-scrollbar { width:4px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
+  </style>
+</head>
+
+<body>
+<div id="app">
+
+  <header>
+    <div class="logo">web<span>sears</span></div>
+    <div class="header-actions">
+      <button class="icon-btn" id="refresh-btn" title="Re-grab page content">↺</button>
+      <button class="icon-btn" id="settings-shortcut" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <div id="status-bar">
+    <div class="status-dot checking" id="server-dot"></div>
+    <span id="server-status-text">Checking local server…</span>
+    <span id="page-title"></span>
+  </div>
+
+  <div id="tabs">
+    <div class="tab active" data-tab="summarize">Summarize</div>
+    <div class="tab" data-tab="upload">Upload</div>
+    <div class="tab" data-tab="settings">Settings</div>
+  </div>
+
+<<<<<<< HEAD
+  <!-- SUMMARIZE PANEL -->
+  <div class="panel active" id="panel-summarize">
+    <div id="page-info-card">
+      <div class="page-info-title" id="pi-title">Waiting for page…</div>
+      <div class="page-info-url" id="pi-url"></div>
+=======
+  <!-- ── SUMMARIZE ── -->
+  <div class="panel active" id="panel-summarize">
+    <div id="page-info-card">
+      <div class="page-info-title" id="pi-title">Waiting for page…</div>
+      <div class="page-info-url"  id="pi-url"></div>
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
+      <div class="page-info-meta" id="pi-meta"></div>
+    </div>
+
+    <div>
+      <label>Model / Provider</label>
+      <select id="model-select">
+        <optgroup label="🖥  Local Models">
+          <option value="local:combined">Combined (BART + T5 + LexRank)</option>
+          <option value="local:bart">BART</option>
+          <option value="local:t5">T5</option>
+          <option value="local:lexrank">LexRank (extractive)</option>
+        </optgroup>
+        <optgroup label="☁  Cloud APIs">
+<<<<<<< HEAD
+          <option value="cloud:openai"    id="opt-openai"    disabled>OpenAI GPT-4o         (add key →)</option>
+          <option value="cloud:gemini"    id="opt-gemini"    disabled>Google Gemini          (add key →)</option>
+          <option value="cloud:anthropic" id="opt-anthropic" disabled>Anthropic Claude       (add key →)</option>
+          <option value="cloud:mistral"   id="opt-mistral"   disabled>Mistral AI             (add key →)</option>
+          <option value="cloud:groq"      id="opt-groq"      disabled>Groq (fast inference)  (add key →)</option>
+          <option value="cloud:cohere"    id="opt-cohere"    disabled>Cohere                 (add key →)</option>
+=======
+          <option value="cloud:openai"     id="opt-openai"     disabled>OpenAI GPT-4o          (add key →)</option>
+          <option value="cloud:gemini"     id="opt-gemini"     disabled>Google Gemini           (add key →)</option>
+          <option value="cloud:anthropic"  id="opt-anthropic"  disabled>Anthropic Claude        (add key →)</option>
+          <option value="cloud:mistral"    id="opt-mistral"    disabled>Mistral AI              (add key →)</option>
+          <option value="cloud:groq"       id="opt-groq"       disabled>Groq (fast inference)   (add key →)</option>
+          <option value="cloud:cohere"     id="opt-cohere"     disabled>Cohere                  (add key →)</option>
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
+        </optgroup>
+      </select>
+    </div>
+
+    <button class="btn btn-primary btn-full" id="summarize-btn">
+      <div class="spinner"></div>
+      <span class="btn-label">✦ Summarize this page</span>
+    </button>
+
+    <div class="error-box" id="error-box"></div>
+
+    <div id="result-container">
+      <div class="result-section" id="section-final">
+        <div class="result-section-header">
+          <span class="result-section-title">✦ Summary</span>
+<<<<<<< HEAD
+          <div class="view-toggle">
+            <button id="view-formatted" class="active">Points</button>
+            <button id="view-plain">Plain</button>
+          </div>
+        </div>
+        <div class="result-section-body" id="text-final"></div>
+        <div class="result-actions">
+          <button class="action-btn" id="btn-speak">
+            <span id="speak-ico">🔊</span>
+            <span id="speak-label">Read aloud</span>
+            <div class="voice-wave" id="voice-wave">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </button>
+          <button class="action-btn" id="btn-copy-final">📋 Copy</button>
+          <button class="action-btn" id="btn-export-txt">📄 .txt</button>
+          <button class="action-btn" id="btn-export-md">📝 .md</button>
+        </div>
+      </div>
+
+      <!-- breakdown (combined only) -->
+      <div class="result-section" id="section-breakdown" style="display:none">
+        <div class="breakdown-header" id="breakdown-toggle">
+          <span class="result-section-title">Model breakdown</span>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="breakdown-content" id="breakdown-body">
+          <div style="padding:10px 13px;display:flex;flex-direction:column;gap:10px;">
+            <div>
+              <div class="model-tag tag-bart">BART</div>
+              <div id="text-bart" style="font-size:12px;line-height:1.7;color:var(--text)"></div>
+            </div>
+            <div>
+              <div class="model-tag tag-t5">T5</div>
+              <div id="text-t5" style="font-size:12px;line-height:1.7;color:var(--text)"></div>
+            </div>
+            <div>
+              <div class="model-tag tag-lexrank">LexRank</div>
+              <div id="text-lexrank" style="font-size:12px;line-height:1.7;color:var(--text)"></div>
+            </div>
+          </div>
+        </div>
+=======
+          <button class="copy-btn" data-target="text-final">copy</button>
+        </div>
+        <div class="result-section-body" id="text-final"></div>
+      </div>
+      <div class="result-section" id="section-bart" style="display:none">
+        <div class="result-section-header">
+          <span class="result-section-title">BART</span>
+          <button class="copy-btn" data-target="text-bart">copy</button>
+        </div>
+        <div class="result-section-body" id="text-bart"></div>
+      </div>
+      <div class="result-section" id="section-t5" style="display:none">
+        <div class="result-section-header">
+          <span class="result-section-title">T5</span>
+          <button class="copy-btn" data-target="text-t5">copy</button>
+        </div>
+        <div class="result-section-body" id="text-t5"></div>
+      </div>
+      <div class="result-section" id="section-lexrank" style="display:none">
+        <div class="result-section-header">
+          <span class="result-section-title">LexRank</span>
+          <button class="copy-btn" data-target="text-lexrank">copy</button>
+        </div>
+        <div class="result-section-body" id="text-lexrank"></div>
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
+      </div>
+    </div>
+  </div>
+
+<<<<<<< HEAD
+  <!-- UPLOAD PANEL -->
+=======
+  <!-- ── UPLOAD ── -->
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
+  <div class="panel" id="panel-upload">
+    <div>
+      <label>Model / Provider</label>
+      <select id="upload-model-select">
+        <option value="local:combined">Combined (BART + T5 + LexRank)</option>
+        <option value="local:bart">BART</option>
+        <option value="local:t5">T5</option>
+        <option value="local:lexrank">LexRank</option>
+        <option value="cloud:openai"    id="uopt-openai"    disabled>OpenAI GPT-4o        (add key →)</option>
+        <option value="cloud:gemini"    id="uopt-gemini"    disabled>Google Gemini         (add key →)</option>
+        <option value="cloud:anthropic" id="uopt-anthropic" disabled>Anthropic Claude      (add key →)</option>
+        <option value="cloud:mistral"   id="uopt-mistral"   disabled>Mistral AI            (add key →)</option>
+        <option value="cloud:groq"      id="uopt-groq"      disabled>Groq                  (add key →)</option>
+        <option value="cloud:cohere"    id="uopt-cohere"    disabled>Cohere                (add key →)</option>
+      </select>
+    </div>
+
+    <div id="drop-zone">
+      <div class="drop-icon">📄</div>
+      <div>Drop a .txt or .pdf here</div>
+      <div style="margin-top:4px;font-size:10px;color:var(--text-muted)">or click to browse</div>
+      <input type="file" id="file-input" accept=".txt,.pdf" style="display:none" />
+    </div>
+
+    <div id="file-preview">
+      <span id="file-name-display"></span>
+<<<<<<< HEAD
+      <button class="action-btn" id="remove-file-btn">✕ remove</button>
+=======
+      <button class="copy-btn" id="remove-file-btn">✕ remove</button>
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
+    </div>
+
+    <button class="btn btn-primary btn-full" id="upload-summarize-btn" disabled>
+      <div class="spinner"></div>
+      <span class="btn-label">✦ Summarize document</span>
+    </button>
+
+    <div class="error-box" id="upload-error-box"></div>
+
+    <div id="upload-result-container" style="display:none">
+      <div class="result-section">
+        <div class="result-section-header">
+          <span class="result-section-title">✦ Summary</span>
+<<<<<<< HEAD
+        </div>
+        <div class="result-section-body" id="upload-text-final"></div>
+        <div class="result-actions">
+          <button class="action-btn" id="btn-speak-upload">
+            <span id="speak-ico-upload">🔊</span>
+            <span id="speak-label-upload">Read aloud</span>
+            <div class="voice-wave" id="voice-wave-upload">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </button>
+          <button class="action-btn" id="btn-copy-upload">📋 Copy</button>
+          <button class="action-btn" id="btn-export-upload-txt">📄 .txt</button>
+          <button class="action-btn" id="btn-export-upload-md">📝 .md</button>
+        </div>
+=======
+          <button class="copy-btn" data-target="upload-text-final">copy</button>
+        </div>
+        <div class="result-section-body" id="upload-text-final"></div>
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
+      </div>
+    </div>
+  </div>
+
+<<<<<<< HEAD
+  <!-- SETTINGS PANEL -->
+  <div class="panel" id="panel-settings">
+
+=======
+  <!-- ── SETTINGS ── -->
+  <div class="panel" id="panel-settings">
+
+    <!-- local server -->
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
+    <div class="settings-group">
+      <div class="settings-group-title">Local Server</div>
+      <div class="settings-row">
+        <label>Server URL</label>
+        <div class="inline-row">
+          <input type="text" id="server-url-input" value="http://localhost:5001" />
+<<<<<<< HEAD
+          <button class="btn btn-ghost btn-sm" id="test-server-btn" style="white-space:nowrap">Test</button>
+=======
+          <button class="btn btn-ghost" id="test-server-btn" style="white-space:nowrap;padding:8px 12px">Test</button>
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
+        </div>
+      </div>
+    </div>
+
+<<<<<<< HEAD
+    <div class="settings-group">
+      <div class="settings-group-title">Cloud API Keys</div>
+
+      <div class="settings-row">
+        <div class="provider-label">
+          <div class="provider-logo logo-openai">AI</div>
+          <span style="font-size:11px;color:var(--text-dim);font-weight:600">OpenAI</span>
+=======
+    <!-- cloud keys -->
+    <div class="settings-group">
+      <div class="settings-group-title">Cloud API Keys</div>
+
+      <!-- OpenAI -->
+      <div class="settings-row">
+        <div class="provider-label">
+          <div class="provider-logo logo-openai">AI</div>
+          <span style="font-size:11px;color:var(--text-dim)">OpenAI</span>
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
+          <span class="saved-badge" id="badge-openai">✓ saved</span>
+        </div>
+        <div class="key-input-wrap">
+          <input type="password" id="key-openai" placeholder="sk-…" />
+          <button class="key-save-btn" data-key="openai">Save</button>
+        </div>
+<<<<<<< HEAD
+        <div class="key-status" id="status-openai"></div>
+        <div class="provider-hint">Get key → <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a></div>
+      </div>
+
+      <div class="settings-row">
+        <div class="provider-label">
+          <div class="provider-logo logo-gemini">G</div>
+          <span style="font-size:11px;color:var(--text-dim);font-weight:600">Google Gemini</span>
+=======
+        <div class="provider-hint">Get key → <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a></div>
+      </div>
+
+      <!-- Gemini / AI Studio -->
+      <div class="settings-row">
+        <div class="provider-label">
+          <div class="provider-logo logo-gemini">G</div>
+          <span style="font-size:11px;color:var(--text-dim)">Google Gemini</span>
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
+          <span class="saved-badge" id="badge-gemini">✓ saved</span>
+        </div>
+        <div class="key-input-wrap">
+          <input type="password" id="key-gemini" placeholder="AIza…" />
+          <button class="key-save-btn" data-key="gemini">Save</button>
+        </div>
+<<<<<<< HEAD
+        <div class="key-status" id="status-gemini"></div>
+        <div class="provider-hint">Get key → <a href="https://aistudio.google.com/app/apikey" target="_blank">AI Studio</a> (free tier available)</div>
+      </div>
+
+      <div class="settings-row">
+        <div class="provider-label">
+          <div class="provider-logo logo-anthropic">C</div>
+          <span style="font-size:11px;color:var(--text-dim);font-weight:600">Anthropic Claude</span>
+=======
+        <div class="provider-hint">Get key → <a href="https://aistudio.google.com/app/apikey" target="_blank">AI Studio</a> (free tier available)</div>
+      </div>
+
+      <!-- Anthropic -->
+      <div class="settings-row">
+        <div class="provider-label">
+          <div class="provider-logo logo-anthropic">C</div>
+          <span style="font-size:11px;color:var(--text-dim)">Anthropic Claude</span>
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
+          <span class="saved-badge" id="badge-anthropic">✓ saved</span>
+        </div>
+        <div class="key-input-wrap">
+          <input type="password" id="key-anthropic" placeholder="sk-ant-…" />
+          <button class="key-save-btn" data-key="anthropic">Save</button>
+        </div>
+<<<<<<< HEAD
+        <div class="key-status" id="status-anthropic"></div>
+        <div class="provider-hint">Get key → <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a></div>
+      </div>
+
+      <div class="settings-row">
+        <div class="provider-label">
+          <div class="provider-logo logo-mistral">M</div>
+          <span style="font-size:11px;color:var(--text-dim);font-weight:600">Mistral AI</span>
+=======
+        <div class="provider-hint">Get key → <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a></div>
+      </div>
+
+      <!-- Mistral -->
+      <div class="settings-row">
+        <div class="provider-label">
+          <div class="provider-logo logo-mistral">M</div>
+          <span style="font-size:11px;color:var(--text-dim)">Mistral AI</span>
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
+          <span class="saved-badge" id="badge-mistral">✓ saved</span>
+        </div>
+        <div class="key-input-wrap">
+          <input type="password" id="key-mistral" placeholder="…" />
+          <button class="key-save-btn" data-key="mistral">Save</button>
+        </div>
+<<<<<<< HEAD
+        <div class="key-status" id="status-mistral"></div>
+        <div class="provider-hint">Get key → <a href="https://console.mistral.ai/api-keys" target="_blank">console.mistral.ai</a></div>
+      </div>
+
+      <div class="settings-row">
+        <div class="provider-label">
+          <div class="provider-logo logo-groq">GQ</div>
+          <span style="font-size:11px;color:var(--text-dim);font-weight:600">Groq</span>
+=======
+        <div class="provider-hint">Get key → <a href="https://console.mistral.ai/api-keys" target="_blank">console.mistral.ai</a></div>
+      </div>
+
+      <!-- Groq -->
+      <div class="settings-row">
+        <div class="provider-label">
+          <div class="provider-logo logo-groq">GQ</div>
+          <span style="font-size:11px;color:var(--text-dim)">Groq</span>
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
+          <span class="saved-badge" id="badge-groq">✓ saved</span>
+        </div>
+        <div class="key-input-wrap">
+          <input type="password" id="key-groq" placeholder="gsk_…" />
+          <button class="key-save-btn" data-key="groq">Save</button>
+        </div>
+<<<<<<< HEAD
+        <div class="key-status" id="status-groq"></div>
+        <div class="provider-hint">Get key → <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a> (free, fast)</div>
+      </div>
+
+      <div class="settings-row">
+        <div class="provider-label">
+          <div class="provider-logo logo-cohere">Co</div>
+          <span style="font-size:11px;color:var(--text-dim);font-weight:600">Cohere</span>
+=======
+        <div class="provider-hint">Get key → <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a> (free, very fast)</div>
+      </div>
+
+      <!-- Cohere -->
+      <div class="settings-row">
+        <div class="provider-label">
+          <div class="provider-logo logo-cohere">Co</div>
+          <span style="font-size:11px;color:var(--text-dim)">Cohere</span>
+>>>>>>> 65459a273944037978469feb854b5e7588d50575
+          <span class="saved-badge" id="badge-cohere">✓ saved</span>
+        </div>
+        <div class="key-input-wrap">
+          <input type="password" id="key-cohere" placeholder="…" />
+          <button class="key-save-btn" data-key="cohere">Save</button>
+        </div>
+<<<<<<< HEAD
+        <div class="key-status" id="status-cohere"></div>
+        <div class="provider-hint">Get key → <a href="https://dashboard.cohere.com/api-keys" target="_blank">dashboard.cohere.com</a> (free trial)</div>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-group-title">Data</div>
+      <button class="btn btn-ghost btn-full" id="clear-keys-btn">🗑 Clear all saved keys</button>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast">Copied!</div>
+
+<script src="sidebar.js"></script>
+</body>
+</html>
+=======
+        <div class="provider-hint">Get key → <a href="https://dashboard.cohere.com/api-keys" target="_blank">dashboard.cohere.com</a> (free trial)</div>
+      </div>
+
+    </div><!-- /cloud keys -->
+
+    <div class="settings-group">
+      <div class="settings-group-title">Data</div>
+      <button class="btn btn-ghost btn-full" id="clear-keys-btn">Clear all saved keys</button>
+    </div>
+
+  </div><!-- /panel-settings -->
+
+</div>
+<script src="sidebar.js"></script>
+</body>
+</html>
+>>>>>>> 65459a273944037978469feb854b5e7588d50575

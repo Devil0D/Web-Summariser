@@ -1,10 +1,6 @@
 import { DataTypes, Model } from "sequelize";
 import { sequelize } from "../database";
 
-sequelize.authenticate().then(() => {
-  console.log("Message Database connected");
-});
-
 export class Message extends Model {
   public ID!: number;
   public conversationId!: number;
