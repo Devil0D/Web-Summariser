@@ -15,13 +15,9 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      // 1. Listen for any request that starts with /api
       '/api': {
-        // 2. Forward it to your backend server
-        target: 'http://localhost:5000',
+        target: 'http://localhost:5001',
         changeOrigin: true,
-        // 3. Rewrite the path to match your backend's structure
-        // Example: /api/auth/login -> /websears/auth/login
         rewrite: (path) => path.replace(/^\/api/, '/websears'),
       }
     }

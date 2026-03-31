@@ -15,6 +15,11 @@ nltk                        # sumy dependency — run nltk.download('punkt') onc
 
 # ── file handling ─────────────────────────────────────────────────────────────
 pdfplumber==0.11.0          # PDF text extraction
+pypdf>=3.0.0                # Fallback PDF reader (used in main.py)
+pillow>=11.0.0              # Image processing (already listed above, but ensuring it's here)
+python-docx>=0.8.11         # DOCX file extraction (Phase 3 - NEW)
+pytesseract>=0.3.10         # OCR for images (Phase 3 - NEW)
+
 
 # ── dev helpers (optional) ────────────────────────────────────────────────────
 httpx                       # for running test_api.py

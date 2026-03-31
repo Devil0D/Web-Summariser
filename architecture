@@ -1,0 +1,392 @@
+# Web-Summariser Architecture
+
+Last updated: 2026-03-31
+Workspace root: Web-Summariser
+
+This document provides two architecture views:
+1. Full detailed architecture (deep technical view)
+2. Compact architecture (short but complete operational view)
+
+-----------------------------------------------------------------
+
+## 1) Full Detailed Architecture
+
+### 1.1 System Purpose
+Web-Summariser is a multi-surface summarization platform that supports:
+- Browser-side summarization through a Chrome extension
+- Web app usage through a React client + Node backend
+- Local AI summarization using FastAPI + Hugging Face models
+- Cloud AI summarization using provider APIs (OpenAI, Gemini, Anthropic, Mistral, Groq)
+- Local LLM summarization through Ollama
+- Multi-format input processing (text, URL content, PDF, DOCX, images)
+
+The system is designed to let users choose where inference runs:
+- Local CPU/GPU pipeline (privacy-first, on-device)
+- Local Ollama model
+- Cloud provider model
+
+
+### 1.2 Top-Level Components
+
+A) Browser Extension (Chrome, Manifest V3)
+- Path: extension/
+- Core files:
+  - manifest.json
+  - background.js
+  - content.js
+  - sidebar.html
+  - sidebar.js
+- Role:
+  - Captures page content from active tabs
+  - Allows manual URL addition and content merging
+  - Routes summarization requests to local FastAPI or cloud providers
+  - Stores API keys and UI preferences in chrome.storage.local
+  - Provides history and follow-up query interactions
+
+B) Python Summary Service (FastAPI)
+- Path: summary_service/
+- Active entrypoint: main.py (running on port 5001)
+- Role:
+  - Local summarization API for text and file inputs
+  - Extraction and OCR pipeline
+  - Multi-model routing (BART, T5, LexRank, Combined)
+
+C) Node/Express Backend (Auth + Conversations + Chat Orchestration)
+- Path: server/
+- Entrypoint: server.ts (port 5000)
+- Role:
+  - User auth/session/token APIs
+  - Chat history persistence (conversations/messages)
+  - Folder APIs
+  - Gemini API orchestration and model fallback logic
+  - Proxy to FastAPI summarization for summarize intents
+
+D) React Frontend Client
+- Path: client/
+- Toolchain: Vite + React + TypeScript
+- Role:
+  - App UI for auth, dashboard, chat/folders/history experiences
+  - Calls Node backend APIs via configured API base URL
+
+E) Data Layer
+- MySQL via Sequelize in server/database.ts
+- Models:
+  - users
+  - conversations
+  - messages
+  - uploads (folder model currently maps to uploads table)
+
+F) Legacy/Alternate Artifacts
+- Extension_bridge/ appears to be an alternate/older extension bridge variant
+- summary_service/main_backup.py contains older API behavior and additional endpoints not fully present in current main.py
+
+
+### 1.3 Runtime Topology and Ports
+
+Primary local ports:
+- 5001: FastAPI summary service
+- 5000: Express backend
+- 5173: React client (dev)
+- 11434: Ollama
+
+Primary local URLs:
+- FastAPI health: http://localhost:5001/health
+- Express APIs: http://localhost:5000/websears/*
+- React UI: http://localhost:5173
+- Ollama tags/generate: http://localhost:11434/api/*
+
+
+### 1.4 Connection Graph (Implemented)
+
+Flow A: Extension local summarization
+1. content.js extracts page text
+2. background.js relays to sidebar.js
+3. sidebar.js local route calls FastAPI:
+   - POST http://localhost:5001/summarize
+   - POST http://localhost:5001/summarize/selective
+4. FastAPI returns summary payload
+5. Extension renders structured output and stores history
+
+Flow B: Extension cloud summarization
+1. sidebar.js builds prompt
+2. direct API calls from extension to provider endpoints:
+   - OpenAI: https://api.openai.com/v1/chat/completions (model gpt-4o)
+   - Gemini: https://generativelanguage.googleapis.com/v1beta/models/{candidate}:generateContent
+   - Anthropic: https://api.anthropic.com/v1/messages (claude-3-5-haiku-20241022)
+   - Mistral: https://api.mistral.ai/v1/chat/completions (mistral-small-latest)
+   - Groq: https://api.groq.com/openai/v1/chat/completions (llama3-8b-8192)
+3. Result rendered in extension
+
+Flow C: Extension Ollama summarization
+1. sidebar.js -> background message OLLAMA_FETCH
+2. background.js performs fetch to Ollama endpoint
+3. sidebar.js reads response from Ollama /api/generate with model llama3.2
+
+Flow D: React client app APIs
+1. Client uses VITE_API_BASE_URL and credentials include
+2. Calls Express routes under /websears/*
+3. Express validates auth token cookie for protected routes
+4. Express uses MySQL via Sequelize for persistence
+
+Flow E: Express chat summarize path
+1. Client sends request to /websears/chat
+2. If summarize intent detected, Express forwards to FastAPI /summarize with multipart form
+3. Response is persisted in messages table
+4. JSON response returned to client
+
+Flow F: Express chat Gemini path
+1. Client sends request to /websears/chat with text/file for AI reply
+2. Express calls Gemini SDK with fallback candidate list
+3. Resolved working model cached per API key
+4. Response persisted and returned
+
+
+### 1.5 Connection Mismatches to Be Aware Of
+
+These are important for operational correctness:
+
+1) FastAPI response shape mismatch for chat summarize
+- Express /websears/chat currently reads summaryResponse.data.final_summary
+- Current FastAPI main.py /summarize returns field summary (not final_summary)
+- Risk: empty/undefined AI response in summarize branch
+
+2) Missing FastAPI Ollama route expected by Express
+- Express /websears/chat/ollama forwards to http://localhost:5001/ollama/summarize
+- Current summary_service/main.py does not expose /ollama/summarize
+- Risk: chat ollama route fails at runtime
+
+3) Model naming differences across layers
+- FastAPI local model IDs: distilbert-cnn, t5-small/t5, lexrank, combined
+- Extension UI badges sometimes refer to bart/t5/lexrank/combined and provider-style model strings
+- Keep mapping table explicit when integrating new routes
+
+
+### 1.6 Current Model Inventory
+
+Local summarization models (FastAPI main.py)
+- distilbert-cnn -> internally uses bart_summary (bart.py)
+- t5-small / t5 -> t5_summary (T5.py)
+- lexrank -> extractive_summary (extractive_summary.py)
+- combined -> hybrid logic between extractive and bart
+
+Cloud models (Extension)
+- OpenAI: gpt-4o
+- Gemini candidates: gemini-2.0-flash, gemini-1.5-flash, gemini-1.5-flash-8b, gemini-1.5-pro
+- Anthropic: claude-3-5-haiku-20241022
+- Mistral: mistral-small-latest
+- Groq: llama3-8b-8192
+
+Ollama model (Extension)
+- llama3.2 via /api/generate
+
+Node Gemini model routing (server/routes/chats.ts)
+- Candidate fallback list same as above
+- Cache per API key of last successful model
+
+
+### 1.7 Capabilities Matrix (What You Can Do)
+
+Input types
+- Raw text summarize
+- Web page summarize (extension captured content)
+- Uploaded file summarize (PDF, DOCX, TXT, images)
+- Follow-up query over existing summary
+- Manual link merge with active page content
+
+Summarization options
+- Fully local models (FastAPI)
+- Cloud provider models (direct from extension)
+- Local Ollama model
+
+Persistence and user operations
+- Sign up/login with JWT cookie
+- OAuth login (Google/Facebook)
+- Conversation history storage
+- Message storage with user and role
+- Folder CRUD for organization
+
+Diagnostics
+- Express connectivity test endpoint for FastAPI/Ollama check
+- FastAPI /health and /models
+
+
+### 1.8 Image, OCR, and Document Processing Architecture
+
+Image handling currently present in active FastAPI main.py
+- Routes image file through extract_text_from_file -> _extract_text_from_image
+- Uses PIL preprocessing (grayscale, median filter, contrast, brightness, optional sharpen retry)
+- Uses pytesseract for OCR
+- Uses TESSERACT_CMD or system PATH auto-discovery
+- Returns readable text or meaningful fallback string if no text detected
+
+Document handling
+- PDF: pypdf extraction in active main.py
+- DOCX: python-docx extraction if installed
+- TXT: UTF-8 decode with ignore fallback
+
+Additional modules present but not directly wired in current main.py
+- pdf_handler.py
+  - richer pypdf/pdfplumber extraction metadata and quality checks
+- image_analyzer.py
+  - transformer-based image captioning pipeline (BLIP)
+  - structured image summary payload
+
+This means the codebase supports two image/document design directions:
+- OCR-first extraction (active in main.py)
+- Vision-caption analysis module (available as optional integration)
+
+
+### 1.9 Full Library Inventory
+
+Python dependencies (root requirements.txt)
+- Core API and runtime: fastapi, uvicorn, python-multipart, pydantic, starlette
+- ML/NLP stack: transformers, torch, torchaudio, torchvision, tokenizers, sentencepiece, accelerate
+- Summarization stack: sumy, nltk
+- Data/eval stack: datasets, evaluate, pandas, numpy, pyarrow, rouge_score
+- File and OCR stack: pdfplumber, pypdf, pillow, python-docx, pytesseract
+- Networking/utilities: requests, httpx, aiohttp, urllib3, tqdm, regex, psutil
+- Plus pinned transitive ecosystem packages listed in requirements.txt
+
+Node backend dependencies (server/package.json)
+- Runtime: express, cors, dotenv, cookie-parser, express-session
+- Auth/security: jsonwebtoken, bcryptjs, passport, passport-google-oauth20, passport-facebook
+- Data/storage: sequelize, mysql2
+- AI/client calls: @google/generative-ai, axios, form-data
+- Uploads: multer
+- TypeScript tooling: ts-node, typescript, @types/* packages
+
+React client dependencies (client/package.json)
+- Core: react, react-dom, react-router-dom
+- Forms/validation: react-hook-form, @hookform/resolvers, zod
+- UI system: radix-ui primitives, lucide-react, sonner
+- Styling: tailwindcss, tailwindcss-animate, postcss, autoprefixer, tw-animate-css
+- Utilities: clsx, class-variance-authority, tailwind-merge
+- Build/tooling: vite, @vitejs/plugin-react, typescript, eslint ecosystem
+
+Extension dependencies
+- No npm package manifest in extension root
+- Relies on browser APIs + direct HTTPS calls + local service URLs
+
+
+### 1.10 Security and Auth Architecture
+
+Auth method
+- Cookie-based JWT token named token
+- Signed with JWT_SECRET and 1-day expiration
+- Middleware checks req.cookies.token and verifies payload
+
+OAuth
+- Passport Google strategy (if GOOGLE_CLIENT_ID/SECRET set)
+- Passport Facebook strategy (if FACEBOOK_APP_ID/SECRET set)
+- Callback sets JWT cookie and redirects to client dashboard
+
+CORS/session
+- Express CORS currently allows origin http://localhost:5173 with credentials true
+- Session middleware enabled in Express
+
+Secrets in use
+- JWT_SECRET
+- DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS
+- GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL
+- FACEBOOK_APP_ID, FACEBOOK_APP_SECRET, FACEBOOK_CALLBACK_URL
+- GEMINI_API_KEY (optional server-side fallback)
+- TESSERACT_CMD (optional for OCR executable path)
+
+
+### 1.11 How To Add New Models
+
+A) Add a new local FastAPI summarization model
+1. Create model wrapper module in summary_service/ (e.g., my_model.py)
+2. Import function in summary_service/main.py
+3. Add model ID mapping inside summarize_text router
+4. Add model metadata in /models route
+5. Update extension model dropdown options for local provider if needed
+6. Validate timeout and chunking behavior for long inputs
+
+B) Add a new cloud provider in extension
+1. Add provider key in ALL_PROVIDERS (sidebar.js)
+2. Add UI input field for API key in settings panel
+3. Implement callProvider function similar to callOpenAI/callMistral
+4. Register in CLOUD_CALLERS map
+5. Add host_permissions in extension/manifest.json for provider domain
+6. Add model options in select controls
+
+C) Add a new Ollama model
+1. Pull model locally (example: ollama pull <model>)
+2. Update callOllama payload model field in sidebar.js or expose model select
+3. Optionally add server-side route parity if using /websears/chat/ollama orchestration
+
+D) Add vision model inference in FastAPI
+1. Integrate image_analyzer.py functions into active main.py routes
+2. Add endpoint for image caption/analysis separate from OCR extraction
+3. Return structured fields: short_summary, detailed_analysis, image_info
+
+
+### 1.12 Operational Runbook
+
+Recommended startup order
+1. Start FastAPI: uvicorn main:app --reload --port 5001 (in summary_service)
+2. Start Express: npx ts-node server.ts (in server)
+3. Start React client: npm run dev (in client)
+4. Optional local LLM: ollama serve and pull needed model
+5. Load extension folder in chrome://extensions
+
+Health checks
+- FastAPI: GET /health
+- Express: open any /websears route with valid auth flow
+- Ollama: GET /api/tags
+
+
+-----------------------------------------------------------------
+
+## 2) Compact Architecture (Short but Enough)
+
+### 2.1 What This Project Is
+A hybrid summarization platform with four active layers:
+- Chrome Extension (capture + summarize)
+- FastAPI Summary Service (local models + OCR/file parsing)
+- Express Backend (auth, chat history, Gemini orchestration)
+- React Client (web UI)
+
+### 2.2 Core Connections
+- Extension local summary -> FastAPI at :5001
+- Extension cloud summary -> direct provider APIs
+- Extension Ollama -> background fetch to :11434
+- React client -> Express at :5000 (/websears/*)
+- Express summarize path -> FastAPI /summarize
+- Express stores users/conversations/messages in MySQL
+
+### 2.3 Models In Use
+- Local: BART (distilbert-cnn route), T5, LexRank, Combined
+- Cloud: OpenAI gpt-4o, Gemini fallback list, Anthropic Claude Haiku, Mistral Small, Groq Llama3 8B
+- Ollama: llama3.2
+
+### 2.4 Inputs Supported
+- Plain text
+- Website extracted text
+- PDF
+- DOCX
+- TXT
+- Images (OCR pipeline)
+- Manual URL merge + follow-up question over summary
+
+### 2.5 Libraries (High Level)
+- Python: FastAPI, Transformers, Torch, Sumy/NLTK, pypdf/pdfplumber, Pillow, pytesseract, python-docx
+- Backend: Express, Sequelize, MySQL2, Passport, JWT, Multer, Axios, Google Generative AI SDK
+- Frontend: React, Vite, Tailwind, Radix UI, Zod, React Hook Form
+
+### 2.6 What You Can Add Next
+- New local model in FastAPI router
+- New cloud provider in extension caller map + host permissions
+- New Ollama models by changing model in payload or adding UI selector
+- Vision caption endpoint by wiring image_analyzer.py into active main.py
+
+### 2.7 Important Current Gaps
+- Express expects final_summary from FastAPI summarize; active FastAPI currently returns summary
+- Express /websears/chat/ollama expects FastAPI /ollama/summarize; active FastAPI route is not present
+
+These two should be aligned for fully reliable end-to-end behavior.
+
+-----------------------------------------------------------------
+
+End of architecture document.

@@ -1,0 +1,623 @@
+{
+  "_model_info": {
+    "model_name": "Tensura Gaming & Community Server",
+    "version": "1.0",
+    "designed_for": "Gaming streams, hackathons, anime/manga discussions, and work project collaboration",
+    "theme": "Cozy & Professional mix — inspired by Tensura but with modern gaming vibes",
+    "notes": "All fields marked with ⚠️ REQUIRED must be filled. Fields marked 🔧 OPTIONAL can be skipped."
+  },
+
+  "server": {
+    "name": "Tempest",
+    "description": "A cozy space for gaming streams, hackathons, anime lovers, and chill work collab. Veldora approved! 🎮",
+    "icon": "⚠️ REQUIRED — Upload server icon after creation",
+    "verification_level": "low",
+    "default_notifications": "only_mentions",
+    "explicit_content_filter": "disabled",
+    "system_channel": "📢┃announcements"
+  },
+
+  "roles": {
+    "_note": "Create roles in this exact order from top to bottom. Use hex color codes.",
+    "list": [
+      {
+        "position": 1,
+        "name": "👑 Rimuru",
+        "color": "#FFD700",
+        "hoist": true,
+        "mentionable": false,
+        "permissions": ["administrator"],
+        "assigned_to": "Server owner only",
+        "how_to_assign": "Manual — owner assigns to themselves",
+        "description": "The Goblin Lord himself. Ultimate power."
+      },
+      {
+        "position": 2,
+        "name": "⚡ Veldora",
+        "color": "#00D4FF",
+        "hoist": true,
+        "mentionable": true,
+        "permissions": [
+          "kick_members",
+          "ban_members",
+          "manage_messages",
+          "manage_channels",
+          "mute_members",
+          "view_audit_log",
+          "manage_roles"
+        ],
+        "assigned_to": "Best buddy / Co-owner",
+        "how_to_assign": "Manual — owner assigns their trusted lieutenant",
+        "description": "True Dragon & best friend. Nearly the same power as Rimuru."
+      },
+      {
+        "position": 3,
+        "name": "🔥 Diablo",
+        "color": "#FF6B00",
+        "hoist": true,
+        "mentionable": true,
+        "permissions": [
+          "kick_members",
+          "ban_members",
+          "manage_messages",
+          "mute_members",
+          "view_audit_log",
+          "manage_roles"
+        ],
+        "assigned_to": "Moderator team",
+        "how_to_assign": "Manual — owner assigns after reviewing applications",
+        "description": "Primordial Demon. Manages order and keeps things smooth."
+      },
+      {
+        "position": 4,
+        "name": "💫 Guardian",
+        "color": "#9D4EDD",
+        "hoist": true,
+        "mentionable": true,
+        "permissions": [
+          "manage_messages",
+          "mute_members",
+          "view_audit_log"
+        ],
+        "assigned_to": "Close friends with moderation powers",
+        "how_to_assign": "Manual — owner assigns to trusted inner circle",
+        "description": "Close friends with a bit of management power. Keeps channels healthy."
+      },
+      {
+        "position": 5,
+        "name": "🎭 Shizu",
+        "color": "#3A0CA3",
+        "hoist": true,
+        "mentionable": false,
+        "permissions": [
+          "manage_messages",
+          "view_audit_log"
+        ],
+        "assigned_to": "Senior moderators",
+        "how_to_assign": "Manual or merit-based — staff decides",
+        "description": "Experienced member with moderate powers."
+      },
+      {
+        "position": 6,
+        "name": "🎵 Lyre",
+        "color": "#FF006E",
+        "hoist": false,
+        "mentionable": true,
+        "permissions": [
+          "send_messages",
+          "read_messages",
+          "manage_channels"
+        ],
+        "assigned_to": "Music bot / automated role",
+        "how_to_assign": "🤖 BOT AUTO — for bots that manage music",
+        "description": "Bot role for music management."
+      },
+      {
+        "position": 7,
+        "name": "🔧 System",
+        "color": "#FB5607",
+        "hoist": false,
+        "mentionable": false,
+        "permissions": [
+          "send_messages",
+          "read_messages"
+        ],
+        "assigned_to": "Utility bots / automated role",
+        "how_to_assign": "🤖 BOT AUTO — for specific utility bots",
+        "description": "Bot role for utility functions."
+      },
+      {
+        "position": 8,
+        "name": "👥 Adventurer",
+        "color": "#06A77D",
+        "hoist": false,
+        "mentionable": false,
+        "permissions": [
+          "send_messages",
+          "read_messages",
+          "attach_files",
+          "embed_links",
+          "add_reactions",
+          "use_external_emojis"
+        ],
+        "assigned_to": "All casual members",
+        "how_to_assign": "🤖 BOT AUTO — assigned after welcome",
+        "description": "Regular community member."
+      },
+      {
+        "position": 9,
+        "name": "📺 YouTuber",
+        "color": "#FF0000",
+        "hoist": false,
+        "mentionable": true,
+        "permissions": [
+          "send_messages",
+          "read_messages",
+          "attach_files",
+          "embed_links",
+          "add_reactions"
+        ],
+        "assigned_to": "Content creators / streamers",
+        "how_to_assign": "Manual — owner after verification",
+        "description": "Verified content creator or streamer."
+      },
+      {
+        "position": 10,
+        "name": "🎨 Aesthetic Purple",
+        "color": "#B650FF",
+        "hoist": false,
+        "mentionable": false,
+        "permissions": [
+          "read_messages"
+        ],
+        "assigned_to": "Color cosmetic role",
+        "how_to_assign": "🤖 BOT AUTO — reaction/button role in #roles",
+        "description": "Just for fun — color cosmetic."
+      },
+      {
+        "position": 11,
+        "name": "🎨 Aesthetic Pink",
+        "color": "#FF1493",
+        "hoist": false,
+        "mentionable": false,
+        "permissions": [
+          "read_messages"
+        ],
+        "assigned_to": "Color cosmetic role",
+        "how_to_assign": "🤖 BOT AUTO — reaction/button role in #roles",
+        "description": "Just for fun — color cosmetic."
+      },
+      {
+        "position": 12,
+        "name": "🎨 Aesthetic Cyan",
+        "color": "#00C9FF",
+        "hoist": false,
+        "mentionable": false,
+        "permissions": [
+          "read_messages"
+        ],
+        "assigned_to": "Color cosmetic role",
+        "how_to_assign": "🤖 BOT AUTO — reaction/button role in #roles",
+        "description": "Just for fun — color cosmetic."
+      }
+    ]
+  },
+
+  "categories": [
+    {
+      "name": "━━ 🚪 WELCOME ━━",
+      "position": 1,
+      "who_can_see": "Everyone",
+      "purpose": "First impression — rules and quick orientation",
+      "channels": [
+        {
+          "name": "👋┃welcome",
+          "type": "text",
+          "topic": "Welcome to Rimuru's Realm! Introduce yourself, say hi, and jump in. We're happy to have you! 🎮",
+          "permissions": {
+            "everyone": "read + send",
+            "mod": "read + send + manage"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": "🔧 OPTIONAL — Auto welcome message on join"
+        },
+        {
+          "name": "📜┃rules",
+          "type": "text",
+          "topic": "📋 Keep it chill and respectful. No hate, no spam, no self-promo without permission. Have fun!",
+          "permissions": {
+            "everyone": "read only",
+            "mod": "read + send + manage",
+            "owner": "read + send"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": "🔧 OPTIONAL — Pin rules here"
+        }
+      ]
+    },
+
+    {
+      "name": "━━ 📢 UPDATES & EVENTS ━━",
+      "position": 2,
+      "who_can_see": "Everyone",
+      "purpose": "Server announcements, polls, live streams, and event coordination",
+      "channels": [
+        {
+          "name": "📢┃announcements",
+          "type": "text",
+          "topic": "🔔 Server updates, event launches, and important news only.",
+          "permissions": {
+            "everyone": "read only",
+            "mod": "read + send + manage",
+            "owner": "read + send"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": "🔧 OPTIONAL — Set as system channel"
+        },
+        {
+          "name": "🎬┃live-streams",
+          "type": "text",
+          "topic": "📺 Gaming streams, hackathon sessions, and live events. Drop your Twitch/YouTube links here!",
+          "permissions": {
+            "everyone": "read + send",
+            "mod": "read + send + manage"
+          },
+          "slowmode": 5,
+          "nsfw": false,
+          "bot_setup": "🔧 OPTIONAL — Auto-format stream embeds"
+        },
+        {
+          "name": "🗳️┃polls",
+          "type": "text",
+          "topic": "🎯 Vote on server decisions, game picks, or just for fun. Everyone's voice matters!",
+          "permissions": {
+            "everyone": "read + send",
+            "mod": "read + send + manage"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": "⚠️ REQUIRED — Set up poll bot (Dyno, MEE6, or similar)"
+        },
+        {
+          "name": "🎪┃events",
+          "type": "text",
+          "topic": "📅 Hackathons, game nights, watch parties. RSVP and coordinate here!",
+          "permissions": {
+            "everyone": "read only",
+            "mod": "read + send + manage",
+            "owner": "read + send"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": "🔧 OPTIONAL — Use scheduled posts for recurring events"
+        }
+      ]
+    },
+
+    {
+      "name": "━━ 💬 GENERAL CHAT ━━",
+      "position": 3,
+      "who_can_see": "Everyone",
+      "purpose": "Main hangout — anime, manga, media, music, books, and casual conversation",
+      "channels": [
+        {
+          "name": "💬┃general",
+          "type": "text",
+          "topic": "🗣️ Main chat — anime hot takes, memes, random thoughts. Keep it chill!",
+          "permissions": {
+            "everyone": "read + send",
+            "mod": "read + send + manage"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": null
+        },
+        {
+          "name": "🎨┃media-art",
+          "type": "text",
+          "topic": "📸 Share fanart, screenshots, anime edits, design work. Credit artists!",
+          "permissions": {
+            "everyone": "read + send",
+            "mod": "read + send + manage"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": null
+        },
+        {
+          "name": "📚┃manga-anime",
+          "type": "text",
+          "topic": "📖 Discuss manga and anime — recommendations, theories, spoilers (tag them!). Tensura discussion welcome 😄",
+          "permissions": {
+            "everyone": "read + send",
+            "mod": "read + send + manage"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": null
+        },
+        {
+          "name": "🎵┃music-books",
+          "type": "text",
+          "topic": "🎶 Music drops, book recommendations, playlists. What are you listening to?",
+          "permissions": {
+            "everyone": "read + send",
+            "mod": "read + send + manage"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": "🔧 OPTIONAL — Link music bots here"
+        },
+        {
+          "name": "🤖┃bot-cmds",
+          "type": "text",
+          "topic": "⚙️ All bot commands here only. Keep other channels clean and readable.",
+          "permissions": {
+            "everyone": "read + send",
+            "mod": "read + send"
+          },
+          "slowmode": 2,
+          "nsfw": false,
+          "bot_setup": "⚠️ REQUIRED — Restrict bots to respond only here"
+        }
+      ]
+    },
+
+    {
+      "name": "━━ 🎙️ VOICE CHANNELS ━━",
+      "position": 4,
+      "who_can_see": "Everyone",
+      "purpose": "Voice hangouts for gaming, streaming, study sessions, and AFK",
+      "channels": [
+        {
+          "name": "🎮 General Voice 1",
+          "type": "voice",
+          "bitrate": 96000,
+          "user_limit": 0,
+          "permissions": {
+            "everyone": "connect + speak"
+          },
+          "bot_setup": null
+        },
+        {
+          "name": "🎮 General Voice 2",
+          "type": "voice",
+          "bitrate": 96000,
+          "user_limit": 0,
+          "permissions": {
+            "everyone": "connect + speak"
+          },
+          "bot_setup": null
+        },
+        {
+          "name": "🔐 Private Lounge",
+          "type": "voice",
+          "bitrate": 96000,
+          "user_limit": 0,
+          "permissions": {
+            "everyone": "hidden",
+            "guardian": "connect + speak",
+            "veldora": "connect + speak",
+            "rimuru": "connect + speak"
+          },
+          "bot_setup": null,
+          "description": "For close friends and leadership to chat privately"
+        },
+        {
+          "name": "😴 AFK Zone",
+          "type": "voice",
+          "bitrate": 64000,
+          "user_limit": 0,
+          "permissions": {
+            "everyone": "connect"
+          },
+          "bot_setup": "🔧 OPTIONAL — Set as AFK channel for idle users"
+        }
+      ]
+    },
+
+    {
+      "name": "━━ 💻 HACKATHON & PROJECTS ━━",
+      "position": 5,
+      "who_can_see": "Everyone",
+      "purpose": "Hackathon coordination, project discussions, and collaboration",
+      "channels": [
+        {
+          "name": "🚀┃hackathon-hub",
+          "type": "text",
+          "topic": "⚡ Main hackathon channel — announcements, team formation, progress updates.",
+          "permissions": {
+            "everyone": "read only",
+            "mod": "read + send + manage",
+            "owner": "read + send"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": null
+        },
+        {
+          "name": "💡┃ideas-brainstorm",
+          "type": "text",
+          "topic": "🧠 Pitch ideas, discuss solutions, and brainstorm together. Wild ideas welcome!",
+          "permissions": {
+            "everyone": "read + send",
+            "mod": "read + send + manage"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": null
+        },
+        {
+          "name": "📊┃project-progress",
+          "type": "text",
+          "topic": "📈 Track progress, share updates, and celebrate milestones. Keep it organized!",
+          "permissions": {
+            "everyone": "read + send",
+            "mod": "read + send + manage"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": "🔧 OPTIONAL — Auto-archive old progress posts"
+        },
+        {
+          "name": "🛠️┃technical-help",
+          "type": "text",
+          "topic": "🔧 Ask for help with bugs, debugging, architecture questions. Share knowledge!",
+          "permissions": {
+            "everyone": "read + send",
+            "mod": "read + send + manage"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": null
+        }
+      ]
+    },
+
+    {
+      "name": "━━ 🎮 GAMES & FUN ━━",
+      "position": 6,
+      "who_can_see": "Everyone",
+      "purpose": "Gaming sessions, game-specific channels, and community fun",
+      "channels": [
+        {
+          "name": "🎯┃sofi-squad",
+          "type": "text",
+          "topic": "🎮 Stackfall Online & Friends (Sofi) squad! Matchmaking, tips, and gaming sessions.",
+          "permissions": {
+            "everyone": "read + send",
+            "mod": "read + send + manage"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": null
+        },
+        {
+          "name": "🕹️┃gaming-central",
+          "type": "text",
+          "topic": "🎮 Discussion about other games, speedruns, achievements, clips. Share your gaming moments!",
+          "permissions": {
+            "everyone": "read + send",
+            "mod": "read + send + manage"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": null
+        },
+        {
+          "name": "🎲┃game-night",
+          "type": "text",
+          "topic": "🎲 Trivia, riddles, truth or dare, would you rather. Keep it fun!",
+          "permissions": {
+            "everyone": "read + send",
+            "mod": "read + send + manage"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": "🔧 OPTIONAL — Add game bot (Dank Memer, UnbelievaBoat, etc.)"
+        }
+      ]
+    },
+
+    {
+      "name": "━━ 🛡️ PRIVATE VAULT ━━",
+      "position": 7,
+      "who_can_see": "Veldora and owner only — fully invisible to everyone else",
+      "purpose": "Private storage for AI tools, useful resources, and curated lists",
+      "channels": [
+        {
+          "name": "🤖┃ai-tools-vault",
+          "type": "text",
+          "topic": "🧠 Curated list of AI tools, ChatGPT prompts, automation scripts, and useful resources.",
+          "permissions": {
+            "everyone": "hidden",
+            "veldora": "read + send",
+            "rimuru": "read + send + manage"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": null
+        },
+        {
+          "name": "📝┃resource-library",
+          "type": "text",
+          "topic": "📚 Important links, guides, templates, and reference materials. Organized and indexed.",
+          "permissions": {
+            "everyone": "hidden",
+            "veldora": "read + send",
+            "rimuru": "read + send + manage"
+          },
+          "slowmode": 0,
+          "nsfw": false,
+          "bot_setup": null
+        }
+      ]
+    }
+  ],
+
+  "auto_assign_on_join": "👥 Adventurer",
+
+  "role_assignment_strategy": {
+    "automatic_roles": {
+      "👥 Adventurer": "Assigned on join automatically",
+      "🎨 Color roles": "Via reaction/button roles in #roles channel (if created)"
+    },
+    "manual_roles": {
+      "⚡ Veldora": "Owner decision only",
+      "🔥 Diablo": "Apply via ticket or direct owner request",
+      "💫 Guardian": "Invitation only from owner",
+      "🎭 Shizu": "Merit-based or owner promotion"
+    }
+  },
+
+  "bot_setup_checklist": {
+    "_note": "Set up bots in this order after creating all channels",
+    "step_1": {
+      "task": "Welcome Message",
+      "channel": "👋┃welcome",
+      "recommended_bots": ["Wick", "MEE6"],
+      "action": "Auto-welcome new members with server info"
+    },
+    "step_2": {
+      "task": "Auto-Role Assignment",
+      "recommended_bots": ["MEE6", "Dyno"],
+      "action": "Assign 👥 Adventurer role on join automatically"
+    },
+    "step_3": {
+      "task": "Polls",
+      "channel": "🗳️┃polls",
+      "recommended_bots": ["Dyno", "MEE6", "Unbelievaboat"],
+      "action": "Enable poll commands"
+    },
+    "step_4": {
+      "task": "Music (Optional)",
+      "channel": "🎵┃music-books",
+      "recommended_bots": ["Lavalink", "Groovy (if still available)", "Music bot of choice"],
+      "action": "Music commands in bot-cmds channel"
+    },
+    "step_5": {
+      "task": "Game Bots (Optional)",
+      "channel": "🎲┃game-night",
+      "recommended_bots": ["Dank Memer", "UnbelievaBoat"],
+      "action": "Fun games and trivia"
+    }
+  },
+
+  "summary": {
+    "total_categories": 7,
+    "total_channels": 22,
+    "text_channels": 18,
+    "voice_channels": 4,
+    "total_roles": 12,
+    "bot_roles": 2,
+    "cosmetic_roles": 3,
+    "leadership_roles": 4,
+    "member_roles": 2,
+    "youtuber_roles": 1,
+    "theme": "Tensura-inspired cozy gaming & work collaboration",
+    "perfect_for": "Gaming streams, hackathons, anime fans, and work friend groups"
+  }
+}

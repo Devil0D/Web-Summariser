@@ -60,6 +60,102 @@
       --badge-purple: #7b5ea8;
     }
 
+    /* ── Wood theme (light brown - matches client) ─── */
+    [data-theme="wood"] {
+      --bg:           #f5f0eb;
+      --surface:      #fdfaf7;
+      --surface2:     #f0ebe4;
+      --border:       #e8dfd5;
+      --accent:       #c4956a;
+      --accent-soft:  #ede4d8;
+      --accent-hover: #b8845e;
+      --success:      #6b9b52;
+      --warn:         #d97706;
+      --error:        #c0392b;
+      --error-soft:   rgba(192,57,43,0.1);
+      --text:         #3d3530;
+      --text-dim:     #6b5f57;
+      --text-muted:   #9d8e83;
+      --shadow:       0 2px 12px rgba(196,149,106,0.15);
+      /* badge colors */
+      --badge-blue:   #8b7355;
+      --badge-red:    #c0392b;
+      --badge-green:  #6b9b52;
+      --badge-purple: #9b7bd5;
+    }
+
+    /* ── Cherry theme (reddish) ─── */
+    [data-theme="cherry"] {
+      --bg:           #2a1517;
+      --surface:      #3d1f24;
+      --surface2:     #4a2630;
+      --border:       #6b3a42;
+      --accent:       #d9534f;
+      --accent-soft:  #6b3a42;
+      --accent-hover: #e67775;
+      --success:      #52a359;
+      --warn:         #f5a623;
+      --error:        #d9534f;
+      --error-soft:   rgba(217,83,79,0.2);
+      --text:         #f5e8e6;
+      --text-dim:     #d9bfbc;
+      --text-muted:   #a89a96;
+      --shadow:       0 2px 12px rgba(217,83,79,0.3);
+      /* badge colors */
+      --badge-blue:   #8ba8d9;
+      --badge-red:    #d9534f;
+      --badge-green:  #52a359;
+      --badge-purple: #b794d9;
+    }
+
+    /* ── Night Blue theme ─── */
+    [data-theme="night-blue"] {
+      --bg:           #0a1628;
+      --surface:      #0f1f37;
+      --surface2:     #152d4f;
+      --border:       #1e3a5f;
+      --accent:       #4a90e2;
+      --accent-soft:  #1e3a5f;
+      --accent-hover: #5fa3f0;
+      --success:      #52a752;
+      --warn:         #f5a623;
+      --error:        #e85d6d;
+      --error-soft:   rgba(232,93,109,0.15);
+      --text:         #e8f0f8;
+      --text-dim:     #a8c5e8;
+      --text-muted:   #6b8db0;
+      --shadow:       0 2px 12px rgba(74,144,226,0.2);
+      /* badge colors */
+      --badge-blue:   #4a90e2;
+      --badge-red:    #e85d6d;
+      --badge-green:  #52a752;
+      --badge-purple: #b794d9;
+    }
+
+    /* ── Shady Dark theme (very dark) ─── */
+    [data-theme="shady-dark"] {
+      --bg:           #0d0e11;
+      --surface:      #13151b;
+      --surface2:     #1a1d24;
+      --border:       #242835;
+      --accent:       #6366f1;
+      --accent-soft:  #242835;
+      --accent-hover: #818cf8;
+      --success:      #4caf89;
+      --warn:         #f59e0b;
+      --error:        #ef4444;
+      --error-soft:   rgba(239,68,68,0.15);
+      --text:         #e0e7ff;
+      --text-dim:     #a5b4fc;
+      --text-muted:   #6366f1;
+      --shadow:       0 2px 12px rgba(0,0,0,0.6);
+      /* badge colors */
+      --badge-blue:   #6366f1;
+      --badge-red:    #ef4444;
+      --badge-green:  #4caf89;
+      --badge-purple: #a855f7;
+    }
+
     html, body {
       height: 100%;
       background: var(--bg);
@@ -203,6 +299,135 @@
       white-space: nowrap;
     }
     .page-info-meta { margin-top: 6px; font-size: 10px; color: var(--text-muted); }
+
+    /* Link toggle button */
+    .link-toggle-btn {
+      position: absolute;
+      top: 11px;
+      right: 13px;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    .link-toggle-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+    #page-info-card { position: relative; }
+
+    /* Manual link input dropdown */
+    #manual-link-dropdown { margin-top: -8px; }
+    #manual-link-dropdown.hidden { display: none !important; }
+
+    .manual-link-panel {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+      padding: 10px 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #manual-link-input {
+      font-size: 11px;
+      padding: 7px 9px;
+      width: 100%;
+    }
+
+    .link-input-actions {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    #added-links-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .added-link-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 6px 9px;
+      font-size: 10px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .added-link-item-text {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      word-break: break-all;
+    }
+
+    .added-link-remove-btn {
+      background: none;
+      border: none;
+      color: var(--error);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 0 4px;
+      flex-shrink: 0;
+    }
+    .added-link-remove-btn:hover { color: var(--error-hover, #e8534f); }
+
+    /* Query section (expandable) */
+    #query-section { transition: all 0.2s; }
+    #query-section.hidden { display: none !important; max-height: 0; opacity: 0; }
+
+    .query-panel {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #query-input {
+      font-size: 11px;
+      padding: 7px 9px;
+      width: 100%;
+    }
+
+    .query-actions {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    #query-response {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 8px 10px;
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.5;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    #query-response.hidden { display: none !important; }
+    #query-response.visible { display: block; }
 
     /* ── Summary in-progress banner ── */
     #progress-banner {
@@ -535,6 +760,39 @@
     }
     #file-preview.visible { display: flex; }
 
+    /* Info box */
+    .info-box {
+      background: var(--accent-soft);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 8px 11px;
+      font-size: 10px;
+      color: var(--accent);
+      line-height: 1.4;
+    }
+    .info-box strong { color: var(--accent); }
+
+    /* Manual text section */
+    #manual-text-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #manual-text-input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 12px;
+      padding: 8px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    #manual-text-input:focus { border-color: var(--accent); }
+    #manual-text-input::placeholder { color: var(--text-muted); }
+
     #upload-result-container { display: none; flex-direction: column; gap: 10px; }
     #upload-result-container.visible { display: flex; }
 
@@ -581,6 +839,30 @@
     .inline-row input { flex: 1; }
 
     /* History panel */
+    .history-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+
+    .history-tab {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: var(--font-body);
+      font-size: 9px;
+      padding: 5px 6px;
+      transition: all 0.15s;
+      text-transform: uppercase;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+    }
+    .history-tab:hover { border-color: var(--accent); color: var(--accent); }
+    .history-tab.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
     .history-item {
       background: var(--surface2);
       border: 1px solid var(--border);
@@ -636,6 +918,33 @@
       <div class="page-info-title" id="pi-title">Waiting for page…</div>
       <div class="page-info-url"   id="pi-url"></div>
       <div class="page-info-meta"  id="pi-meta"></div>
+      
+      <!-- Manual link input toggle -->
+      <button class="link-toggle-btn" id="link-toggle-btn" title="Add another link">+</button>
+    </div>
+
+    <!-- Manual link input dropdown -->
+    <div id="manual-link-dropdown" class="hidden">
+      <div class="manual-link-panel">
+        <input type="url" id="manual-link-input" placeholder="Paste link to summarize…" />
+        <div class="link-input-actions">
+          <button class="small-btn" id="link-add-btn">Add</button>
+          <button class="small-btn" id="link-clear-btn">Clear</button>
+        </div>
+        <div id="added-links-list"></div>
+      </div>
+    </div>
+
+    <!-- Query input (expandable) -->
+    <div id="query-section" class="hidden">
+      <div class="query-panel">
+        <input type="text" id="query-input" placeholder="Ask a follow-up question about the summary…" />
+        <div class="query-actions">
+          <button class="small-btn" id="query-send-btn">Send</button>
+          <button class="small-btn" id="query-close-btn">✕</button>
+        </div>
+        <div id="query-response" class="hidden"></div>
+      </div>
     </div>
 
     <!-- Progress banner (shown when summarizing is locked) -->
@@ -746,16 +1055,34 @@
       </select>
     </div>
 
+    <!-- Supported formats (Phase 3: Extended multi-format support) -->
+    <div class="info-box">
+      <strong>Supported Formats:</strong><br>
+      📄 Documents: PDF, DOCX, TXT<br>
+      🖼️ Images: JPG, PNG, GIF, BMP, WebP (with OCR)
+    </div>
+
+    <!-- File upload -->
     <div id="drop-zone">
       <div class="drop-icon">📄</div>
-      <div>Drop a .txt or .pdf here</div>
+      <div>Drop a file here</div>
       <div style="margin-top:4px;font-size:10px;color:var(--text-muted)">or click to browse</div>
-      <input type="file" id="file-input" accept=".txt,.pdf" style="display:none" />
+      <input type="file" id="file-input" accept=".txt,.pdf,.docx,.jpg,.jpeg,.png,.gif" style="display:none" />
     </div>
 
     <div id="file-preview">
       <span id="file-name-display"></span>
       <button class="copy-btn" id="remove-file-btn">✕ remove</button>
+    </div>
+
+    <!-- Manual text input -->
+    <div id="manual-text-section">
+      <label>Or paste text directly</label>
+      <textarea id="manual-text-input" placeholder="Paste or type text here for summarization…" style="resize: none; height: 80px;"></textarea>
+      <button class="btn btn-primary btn-full" id="manual-text-summarize-btn">
+        <div class="spinner"></div>
+        <span class="btn-label">✦ Summarize text</span>
+      </button>
     </div>
 
     <button class="btn btn-primary btn-full" id="upload-summarize-btn" disabled>
@@ -768,7 +1095,7 @@
     <div id="upload-result-container">
       <div class="summary-card" id="upload-summary-card">
         <div class="summary-card-header">
-          <span class="summary-card-title">✦ Document Summary</span>
+          <span class="summary-card-title">✦ Summary</span>
           <div class="summary-card-actions">
             <button class="small-btn" id="copy-upload-btn">copy</button>
           </div>
@@ -785,15 +1112,43 @@
 
   <!-- ── HISTORY panel ── -->
   <div class="panel" id="panel-history">
-    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Recent summaries (saved locally)</div>
-    <div id="history-list">
+    <div style="font-size:10px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em;font-weight:500">History</div>
+    
+    <!-- History category tabs -->
+    <div id="history-tabs" class="history-tabs">
+      <button class="history-tab active" data-category="all">All</button>
+      <button class="history-tab" data-category="link">Link</button>
+      <button class="history-tab" data-category="file">File</button>
+      <button class="history-tab" data-category="text">Text</button>
+    </div>
+
+    <div id="history-list" style="margin-top:8px">
       <div style="text-align:center;color:var(--text-muted);font-size:12px;padding:20px 0">No history yet</div>
     </div>
-    <button class="btn btn-soft-red btn-full" id="clear-history-btn" style="margin-top:4px">Clear history</button>
+    
+    <button class="btn btn-soft-red btn-full" id="clear-history-btn" style="margin-top:8px">Clear history</button>
   </div>
 
   <!-- ── SETTINGS panel ── -->
   <div class="panel" id="panel-settings">
+
+    <div class="settings-group">
+      <div class="settings-group-title">Appearance</div>
+      <div class="settings-row">
+        <label>Color Scheme</label>
+        <select id="theme-select">
+          <option value="dark">Dark (Default)</option>
+          <option value="light">Light</option>
+          <option value="wood">Wood (Light Brown)</option>
+          <option value="cherry">Cherry (Red)</option>
+          <option value="night-blue">Night Blue</option>
+          <option value="shady-dark">Shady Dark</option>
+        </select>
+      </div>
+      <div style="margin-top:8px;font-size:10px;color:var(--text-muted)">
+        Choose your preferred color theme for the extension UI.
+      </div>
+    </div>
 
     <div class="settings-group">
       <div class="settings-group-title">Local Server</div>

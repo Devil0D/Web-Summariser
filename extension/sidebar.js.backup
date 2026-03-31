@@ -1,278 +1,488 @@
-// sidebar.js  – Websears Summarizer
+// sidebar.js  – Websears Summarizer - Optimized
 
 const ALL_PROVIDERS = ["openai","gemini","anthropic","mistral","groq","cohere"];
-const GEMINI_MODEL_CANDIDATES = [
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
-  "gemini-1.5-flash-8b",
-  "gemini-1.5-pro",
-];
-
-// ── State ────────────────────────────────────────────────────────────────────
-const state = {
-  pageText:      "",
-  pageTitle:     "",
-  pageUrl:       "",
-  serverUrl:     "http://localhost:5001",
-  ollamaUrl:     "http://localhost:11434",
-  serverOnline:  false,
-  selectedFile:  null,
-  isSummarizing: false,      // lock: prevent URL changes while summarizing
-  lockedPageText:"",
-  lockedPageTitle:"",
-  lockedPageUrl: "",
-  lastSummaryData: null,     // for download
-  uploadLastData: null,      // for upload download
-  theme: "dark",
-  keys: Object.fromEntries(ALL_PROVIDERS.map(p => [p,""])),
-  manualLinks: [],           // for manual link input
-  queryMode: false,          // for query interaction
-  historyCategory: "all",    // filter history: "all", "link", "file", "text"
-  fileSourceType: "file",    // track if file came from paste or upload: "file", "image"
-};
+const GEMINI_MODEL_CANDIDATES = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
 
 const $ = id => document.getElementById(id);
 
-const tabs         = document.querySelectorAll(".tab");
-const panels       = document.querySelectorAll(".panel");
-const serverDot    = $("server-dot");
-const serverText   = $("server-status-text");
-const summarizeBtn = $("summarize-btn");
-const resultBox    = $("result-container");
-const errorBox     = $("error-box");
+const state = {
+  pageText:"", pageTitle:"", pageUrl:"", serverUrl:"http://localhost:5001", ollamaUrl:"http://localhost:11434",
+  serverOnline:false, selectedFile:null, isSummarizing:false, lockedPageText:"", lockedPageTitle:"", lockedPageUrl:"",
+  lastSummaryData:null, uploadLastData:null, theme:"dark", colorScheme:"wood",
+  keys: Object.fromEntries(ALL_PROVIDERS.map(p => [p,""]))
+};
 
-// ── Tabs ─────────────────────────────────────────────────────────────────────
-tabs.forEach(tab => {
-  tab.addEventListener("click", () => {
-    tabs.forEach(t => t.classList.remove("active"));
-    panels.forEach(p => p.classList.remove("active"));
-    tab.classList.add("active");
-    $(`panel-${tab.dataset.tab}`).classList.add("active");
+// Cache DOM queries safely
+const qs = {
+  tabs: () => document.querySelectorAll(".tab"),
+  panels: () => document.querySelectorAll(".panel"),
+  historyTabs: () => document.querySelectorAll(".history-tab"),
+  get(id) { return $(id); }
+};
+
+// Initialize when DOM is ready
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initializeApp);
+} else {
+  initializeApp();
+}
+
+async function initializeApp() {
+  await loadSettings();
+  await checkServer(true);
+  grabPageContent();
+  setupEventListeners();
+  renderHistoryByType("links");
+  setInterval(() => checkServer(true), 30000);
+}
+
+function setupEventListeners() {
+  // Tabs
+  qs.tabs().forEach(tab => {
+    tab.addEventListener("click", () => switchTab(tab));
   });
-});
 
-// History category tabs: filter by source type (All, Link, File, Text, Image) (Phase 3)
-document.querySelectorAll(".history-tab").forEach(btn => {
-  btn.addEventListener("click", async () => {
-    const category = btn.dataset.category;
-    state.historyCategory = category;
-    
-    // Update active tab styling
-    document.querySelectorAll(".history-tab").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    
-    // Load and filter history
-    const history = await loadHistory();
-    const filtered = category === "all" 
-      ? history 
-      : history.filter(h => (h.sourceType || "link") === category);
-    renderHistory(filtered);
+  const settingsShortcut = qs.get("settings-shortcut");
+  if (settingsShortcut) {
+    settingsShortcut.addEventListener("click", () => switchTab(document.querySelector('[data-tab="settings"]')));
+  }
+
+  // Breakdown collapsibles
+  document.addEventListener("click", e => {
+    const header = e.target.closest(".breakdown-header[data-collapse]");
+    if (!header) return;
+    const body = $(header.dataset.collapse);
+    if (body) body.classList.toggle("open");
   });
-});
 
-$("settings-shortcut").addEventListener("click", () => {
-  tabs.forEach(t => t.classList.remove("active"));
-  panels.forEach(p => p.classList.remove("active"));
-  document.querySelector('[data-tab="settings"]').classList.add("active");
-  $("panel-settings").classList.add("active");
-});
-
-// Collapsible breakdown sections
-document.addEventListener("click", e => {
-  const header = e.target.closest(".breakdown-header[data-collapse]");
-  if (!header) return;
-  const body = $(header.dataset.collapse);
-  if (body) body.classList.toggle("open");
-});
-
-// ── Manual Link Input ─────────────────────────────────────────────────────────
-$("link-toggle-btn").addEventListener("click", (e) => {
-  e.stopPropagation();
-  const dropdown = $("manual-link-dropdown");
-  dropdown.classList.toggle("hidden");
-  if (!dropdown.classList.contains("hidden")) {
-    $("manual-link-input").focus();
+  // Theme toggle
+  const themeToggle = qs.get("theme-toggle");
+  if (themeToggle) {
+    themeToggle.addEventListener("click", async () => {
+      state.theme = state.theme === "dark" ? "light" : "dark";
+      applyTheme(state.theme);
+      await chrome.storage.local.set({ theme: state.theme });
+    });
   }
-});
 
-$("link-add-btn").addEventListener("click", () => {
-  const url = $("manual-link-input").value.trim();
-  if (!url) return;
-  
-  // Validate URL
-  try {
-    new URL(url);
-  } catch (e) {
-    alert("Invalid URL. Make sure it starts with http:// or https://");
-    return;
+  // Refresh page
+  const refreshPageBtn = qs.get("refresh-page-btn");
+  if (refreshPageBtn) {
+    refreshPageBtn.addEventListener("click", grabPageContent);
   }
-  
-  // Avoid duplicates
-  if (state.manualLinks.includes(url)) {
-    alert("This link is already added.");
-    return;
-  }
-  
-  state.manualLinks.push(url);
-  $("manual-link-input").value = "";
-  renderAddedLinks();
-});
 
-$("link-clear-btn").addEventListener("click", () => {
-  state.manualLinks = [];
-  $("manual-link-input").value = "";
-  renderAddedLinks();
-  $("manual-link-dropdown").classList.add("hidden");
-});
-
-function renderAddedLinks() {
-  const list = $("added-links-list");
-  if (!state.manualLinks || state.manualLinks.length === 0) {
-    list.innerHTML = "";
-    return;
-  }
-  
-  list.innerHTML = state.manualLinks.map((url, i) => `
-    <div class="added-link-item">
-      <span class="added-link-item-text" title="${url}">${url}</span>
-      <button class="added-link-remove-btn" data-index="${i}">✕</button>
-    </div>
-  `).join("");
-  
-  // Remove button handlers
-  list.querySelectorAll(".added-link-remove-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const idx = Number(btn.dataset.index);
-      state.manualLinks.splice(idx, 1);
-      renderAddedLinks();
+  // History tabs
+  qs.historyTabs().forEach(tab => {
+    tab.addEventListener("click", async () => {
+      qs.historyTabs().forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      await renderHistoryByType(tab.dataset.type);
     });
   });
-}
 
-// Allow Enter key in manual link input
-$("manual-link-input").addEventListener("keypress", (e) => {
-  if (e.key === "Enter") $("link-add-btn").click();
-});
+  // Clear history
+  const clearBtn = qs.get("clear-history-btn");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", async () => {
+      if (confirm("Delete all history?")) {
+        await historyManager.clearAll();
+        await renderHistoryByType("links");
+      }
+    });
+  }
 
-// ── Query/Follow-up Section ────────────────────────────────────────────────────
-function showQuerySection() {
-  $("query-section").classList.remove("hidden");
-  state.queryMode = true;
-  $("query-input").focus();
-}
+  // Summarize
+  const summarizeBtn = qs.get("summarize-btn");
+  if (summarizeBtn) {
+    summarizeBtn.addEventListener("click", handleSummarize);
+  }
 
-function hideQuerySection() {
-  $("query-section").classList.add("hidden");
-  $("query-response").classList.add("hidden");
-  state.queryMode = false;
-}
+  // Upload
+  const dropZone = qs.get("drop-zone");
+  const fileInput = qs.get("file-input");
+  const uploadBtn = qs.get("upload-summarize-btn");
+  if (dropZone && fileInput) {
+    dropZone.addEventListener("click", () => fileInput.click());
+    dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+    dropZone.addEventListener("drop", e => {
+      e.preventDefault();
+      dropZone.classList.remove("drag-over");
+      if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener("change", () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+  }
+  if (uploadBtn) uploadBtn.addEventListener("click", handleUpload);
 
-// Allow external code to show query section (after summarization)
-window.enableQueryMode = showQuerySection;
+  const removeFileBtn = qs.get("remove-file-btn");
+  if (removeFileBtn) {
+    removeFileBtn.addEventListener("click", () => {
+      state.selectedFile = null;
+      if (fileInput) fileInput.value = "";
+      const preview = qs.get("file-preview");
+      if (preview) preview.classList.remove("visible");
+      if (uploadBtn) uploadBtn.disabled = true;
+    });
+  }
 
-$("query-close-btn").addEventListener("click", hideQuerySection);
+  // Paste image
+  document.addEventListener("paste", e => {
+    const activePanel = document.querySelector(".panel.active");
+    if (activePanel?.id !== "panel-upload") return;
+    const items = e.clipboardData?.items || [];
+    for (let item of items) {
+      if (item.kind === "file" && item.type.startsWith("image/")) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+        const file = new File([blob], `pasted-${Date.now()}.png`, { type: "image/png" });
+        setFile(file);
+        break;
+      }
+    }
+  });
 
-$("query-send-btn").addEventListener("click", async () => {
-  const query = $("query-input").value.trim();
-  if (!query || !state.lastSummaryData) return;
+  // Download buttons
+  const downloadTxtBtn = qs.get("download-txt-btn");
+  if (downloadTxtBtn) downloadTxtBtn.addEventListener("click", () => state.lastSummaryData && downloadTxt(state.lastSummaryData));
   
-  setLoading($("query-send-btn"), true);
-  const responseBox = $("query-response");
-  responseBox.classList.add("hidden");
+  const downloadPdfBtn = qs.get("download-pdf-btn");
+  if (downloadPdfBtn) downloadPdfBtn.addEventListener("click", () => state.lastSummaryData && downloadPdf(state.lastSummaryData));
   
+  const copyStructuredBtn = qs.get("copy-structured-btn");
+  if (copyStructuredBtn) {
+    copyStructuredBtn.addEventListener("click", () => {
+      if (state.lastSummaryData?.summary && navigator.clipboard) {
+        navigator.clipboard.writeText(state.lastSummaryData.summary);
+        copyStructuredBtn.textContent = "✓ copied";
+        setTimeout(() => copyStructuredBtn.textContent = "copy text", 1500);
+      }
+    });
+  }
+
+  // History item delegation
+  const historyList = qs.get("history-list");
+  if (historyList) {
+    historyList.addEventListener("click", async e => {
+      const copyBtn = e.target.closest(".history-copy-btn");
+      if (copyBtn) {
+        const id = copyBtn.dataset.id;
+        const type = document.querySelector(".history-tab.active")?.dataset.type || "links";
+        await copyHistoryItem(id, type);
+      }
+
+      const deleteBtn = e.target.closest(".history-delete-btn");
+      if (deleteBtn) {
+        const id = deleteBtn.dataset.id;
+        const type = document.querySelector(".history-tab.active")?.dataset.type || "links";
+        await deleteHistoryItem(id, type);
+      }
+    });
+  }
+
+  // Settings tab delegation
+  const settingsPanel = qs.get("panel-settings");
+  if (settingsPanel) {
+    settingsPanel.addEventListener("click", e => {
+      const saveBtn = e.target.closest(".key-save-btn");
+      if (saveBtn) {
+        const provider = saveBtn.dataset.key;
+        const input = qs.get(`key-${provider}`);
+        if (input) {
+          state.keys[provider] = input.value.trim();
+          chrome.storage.local.set({ keys: state.keys });
+          const badge = qs.get(`badge-${provider}`);
+          if (badge && input.value.trim()) badge.classList.add("visible");
+        }
+      }
+    });
+  }
+}
+
+function switchTab(tab) {
+  qs.tabs().forEach(t => t.classList.remove("active"));
+  qs.panels().forEach(p => p.classList.remove("active"));
+  tab.classList.add("active");
+  const panelId = `panel-${tab.dataset.tab}`;
+  const panel = qs.get(panelId);
+  if (panel) panel.classList.add("active");
+}
+
+async function handleSummarize() {
+  const errorBox = qs.get("error-box");
+  const resultBox = qs.get("result-container");
+  const manualTextInput = qs.get("manual-text");
+  const additionalLinkInput = qs.get("additional-link");
+  const combineCheckbox = qs.get("combine-links");
+  const summarizeBtn = qs.get("summarize-btn");
+
+  if (!errorBox || !summarizeBtn || !resultBox) return;
+
+  errorBox.classList.remove("visible");
+  resultBox.classList.remove("visible");
+
+  let text = manualTextInput?.value?.trim() || "";
+  let title = "Manual Text";
+  let url = "";
+  let historyType = "texts";
+
+  if (!text) {
+    if (!state.pageText) {
+      errorBox.textContent = "No content. Enter text or open a page.";
+      errorBox.classList.add("visible");
+      return;
+    }
+    text = state.lockedPageText;
+    title = state.lockedPageTitle;
+    url = state.lockedPageUrl;
+    historyType = "links";
+
+    const additionalUrl = additionalLinkInput?.value?.trim() || "";
+    if (additionalUrl) {
+      if (combineCheckbox?.checked) {
+        try {
+          const additionalText = await fetchPageText(additionalUrl);
+          text += "\n\n--- Additional Source ---\n\n" + additionalText;
+        } catch (err) {
+          errorBox.textContent = `Failed to fetch link: ${err.message}`;
+          errorBox.classList.add("visible");
+          return;
+        }
+      } else {
+        await summarizeSingleUrl(additionalUrl, "links");
+        return;
+      }
+    }
+  }
+
+  const { provider, model } = parseModelSelect(qs.get("model-select")?.value || "");
+  setLoading(summarizeBtn, true);
+  lockForSummarization();
+
   try {
-    // Store the current query context
-    const context = {
-      query,
-      originalSummary: state.lastSummaryData.summary,
-      pageTitle: state.lastSummaryData.title,
-      model: state.lastSummaryData.model,
-    };
-    
-    const { provider, model } = parseModelSelect($("model-select").value);
-    const prompt = `Based on the following summary:\n\n"${state.lastSummaryData.summary}"\n\nPlease answer this question: ${query}`;
-    
-    let response;
+    let data;
     if (provider === "local") {
       if (!state.serverOnline) {
         const online = await checkServer(true);
-        if (!online) throw new Error("Local server offline.");
+        if (!online) throw new Error("Local server offline.\nRun: uvicorn main:app --port 5001");
       }
-      const r = await fetch(`${state.serverUrl}/summarize`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `text=${encodeURIComponent(prompt)}&model=${model}`,
-      });
-      if (!r.ok) throw new Error(`Server error ${r.status}`);
-      const d = await r.json();
-      response = d.summary || d.final_summary;
+      data = await callLocalModel(text, model);
+      displayResults(data, false, title, url, model, historyType);
     } else {
-      const d = await callCloud(model, prompt);
-      response = d.summary;
+      data = await callCloud(provider, text);
+      displayResults(data, true, title, url, model, historyType);
     }
-    
-    if (!response) throw new Error("No response from model");
-    
-    // Display response
-    responseBox.textContent = response;
-    responseBox.classList.remove("hidden");
-    responseBox.classList.add("visible");
-    
-    // Store for context
-    state.lastQueryResponse = response;
-    
+    if (manualTextInput) manualTextInput.value = "";
+    if (additionalLinkInput) additionalLinkInput.value = "";
   } catch (err) {
-    responseBox.textContent = `Error: ${err.message}`;
-    responseBox.classList.remove("hidden");
-    responseBox.classList.add("visible");
+    errorBox.textContent = err.message || String(err);
+    errorBox.classList.add("visible");
   } finally {
-    setLoading($("query-send-btn"), false);
+    setLoading(summarizeBtn, false);
+    unlockAfterSummarization();
   }
-});
+}
 
-// Allow Enter key in query input
-$("query-input").addEventListener("keypress", (e) => {
-  if (e.key === "Enter") $("query-send-btn").click();
-});
+async function handleUpload() {
+  if (!state.selectedFile) return;
 
-// ── Theme toggle and select ─────────────────────────────────────────────────────
-const THEME_CYCLE = ["dark", "light", "wood", "cherry", "night-blue", "shady-dark"];
-const THEME_ICONS = {
-  dark: "🌙",
-  light: "☀",
-  wood: "🌳",
-  cherry: "🍒",
-  "night-blue": "🌌",
-  "shady-dark": "🫐"
-};
+  const uploadBtn = qs.get("upload-summarize-btn");
+  const uploadError = qs.get("upload-error-box");
+  const uploadResult = qs.get("upload-result-container");
+  
+  if (!uploadBtn || !uploadError || !uploadResult) return;
 
-$("theme-toggle").addEventListener("click", async () => {
-  const currentIndex = THEME_CYCLE.indexOf(state.theme);
-  const nextIndex = (currentIndex + 1) % THEME_CYCLE.length;
-  state.theme = THEME_CYCLE[nextIndex];
-  applyTheme(state.theme);
-  if ($("theme-select")) $("theme-select").value = state.theme;
-  await chrome.storage.local.set({ theme: state.theme });
-});
+  uploadError.classList.remove("visible");
+  uploadResult.classList.remove("visible");
+  setLoading(uploadBtn, true);
 
-// Theme dropdown selector
-if ($("theme-select")) {
-  $("theme-select").addEventListener("change", async (e) => {
-    state.theme = e.target.value;
-    applyTheme(state.theme);
-    await chrome.storage.local.set({ theme: state.theme });
-  });
+  const { provider, model } = parseModelSelect(qs.get("upload-model-select")?.value || "");
+
+  try {
+    const fileName = state.selectedFile.name;
+    const isImage = /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(fileName);
+
+    if (isImage && provider !== "local") {
+      throw new Error("Images need local model (BART/T5/LexRank)");
+    }
+
+    let summary = "";
+    if (provider === "local") {
+      if (!state.serverOnline) {
+        const online = await checkServer();
+        if (!online) throw new Error("Local server offline");
+      }
+      const form = new FormData();
+      form.append("file", state.selectedFile);
+      form.append("model", model);
+      const endpoint = isImage ? `${state.serverUrl}/upload/image` : `${state.serverUrl}/upload/pdf`;
+      const r = await fetch(endpoint, { method:"POST", body:form, signal: AbortSignal.timeout(120000) });
+      if (!r.ok) throw new Error(`Server ${r.status}`);
+      const d = await r.json();
+      summary = d.final_summary || d.summary || "";
+      if (isImage && !summary) throw new Error("No text found in image");
+    } else {
+      const text = await readFileAsText(state.selectedFile);
+      if (!text.trim()) throw new Error("File is empty");
+      const d = await callCloud(provider, text);
+      summary = d.summary;
+    }
+
+    renderStructuredSummary(qs.get("upload-structured-body"), summary, fileName, "", model);
+    uploadResult.classList.add("visible");
+
+    state.uploadLastData = { title: fileName, url: "", model, summary, date: new Date().toISOString() };
+    saveToHistory({ ...state.uploadLastData, type: "uploads" });
+  } catch (err) {
+    uploadError.textContent = err.message || "Upload failed";
+    uploadError.classList.add("visible");
+  } finally {
+    setLoading(uploadBtn, false);
+  }
+}
+
+function setFile(file) {
+  const docFormats = /\.(txt|pdf)$/i;
+  const imgFormats = /\.(jpg|jpeg|png|gif|bmp|webp)$/i;
+  
+  if (!docFormats.test(file.name) && !imgFormats.test(file.name)) {
+    const uploadError = qs.get("upload-error-box");
+    if (uploadError) {
+      uploadError.textContent = "Unsupported format.\nSupported: .txt, .pdf, .jpg, .png, .gif, .bmp, .webp";
+      uploadError.classList.add("visible");
+    }
+    return;
+  }
+  
+  state.selectedFile = file;
+  const preview = qs.get("file-preview");
+  const display = qs.get("file-name-display");
+  if (display) display.textContent = `${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+  if (preview) preview.classList.add("visible");
+  const uploadBtn = qs.get("upload-summarize-btn");
+  if (uploadBtn) uploadBtn.disabled = false;
+}
+
+// History rendering with event delegation
+async function renderHistoryByType(type) {
+  const historyList = qs.get("history-list");
+  if (!historyList) return;
+
+  const items = await historyManager.getHistory(type);
+  if (!items || items.length === 0) {
+    historyList.innerHTML = `<div style="text-align:center;color:var(--text-muted);font-size:12px;padding:20px 0">No ${type} history</div>`;
+    return;
+  }
+
+  historyList.innerHTML = items.map(item => {
+    const preview = (item.summary || "").slice(0, 60);
+    return `<div class="history-item" data-id="${item.id}">
+      <div class="history-item-title">${escHtml(item.title)}</div>
+      <div class="history-item-meta">${escHtml(item.model)} · ${escHtml(item.date)}</div>
+      <div class="history-item-preview">${escHtml(preview)}...</div>
+      <div class="history-item-actions">
+        <button class="btn btn-ghost history-copy-btn" data-id="${item.id}">Copy</button>
+        <button class="btn btn-soft-red history-delete-btn" data-id="${item.id}">Delete</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+async function copyHistoryItem(id, type) {
+  const items = await historyManager.getHistory(type);
+  const item = items.find(i => i.id === id);
+  if (item && navigator.clipboard) {
+    await navigator.clipboard.writeText(item.summary || "");
+    alert("Copied!");
+  }
+}
+
+async function deleteHistoryItem(id, type) {
+  await historyManager.deleteEntry(type, id);
+  await renderHistoryByType(type);
+}
+
+async function fetchPageText(url) {
+  try {
+    const response = await fetch(url);
+    const html = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const article = doc.querySelector("article, main, [role='main']") || doc.body;
+    return (article.innerText || article.textContent || "").trim();
+  } catch (err) {
+    throw new Error(`Cannot fetch: ${err.message}`);
+  }
+}
+
+async function summarizeSingleUrl(url, historyType) {
+  const errorBox = qs.get("error-box");
+  const summarizeBtn = qs.get("summarize-btn");
+  if (!errorBox || !summarizeBtn) return;
+
+  errorBox.classList.remove("visible");
+  setLoading(summarizeBtn, true);
+  lockForSummarization();
+
+  try {
+    const title = new URL(url).hostname;
+    const text = await fetchPageText(url);
+    if (!text) throw new Error("No text found");
+    const { provider, model } = parseModelSelect(qs.get("model-select")?.value || "");
+    let data;
+    if (provider === "local") {
+      if (!state.serverOnline) {
+        const online = await checkServer(true);
+        if (!online) throw new Error("Offline");
+      }
+      data = await callLocalModel(text, model);
+      displayResults(data, false, title, url, model, historyType);
+    } else {
+      data = await callCloud(provider, text);
+      displayResults(data, true, title, url, model, historyType);
+    }
+  } catch (err) {
+    errorBox.textContent = err.message || "Failed";
+    errorBox.classList.add("visible");
+  } finally {
+    setLoading(summarizeBtn, false);
+    unlockAfterSummarization();
+  }
+}
+
+async function saveToHistory(entry) {
+  if (typeof historyManager === "undefined") return;
+  const type = entry.type || "links";
+  await historyManager.addEntry(type, entry);
 }
 
 function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
-  $("theme-toggle").textContent = THEME_ICONS[theme] || "🌙";
-  if ($("theme-select")) $("theme-select").value = theme;
+  $("theme-toggle").textContent = theme === "dark" ? "☀" : "🌙";
+}
+
+// ── Color Scheme ─────────────────────────────────────────────────────────────
+const DEFAULT_COLOR_SCHEME = "wood";
+
+const COLOR_SCHEMES = {
+  wood:           { name: "🍂 Wood",          display: "Wood (Default)" },
+  "night-blue":   { name: "🌙 Night Blue",    display: "Night Blue" },
+  cherry:         { name: "🍒 Cherry Red",    display: "Cherry Red" },
+  "forest-green": { name: "🌲 Forest Green",  display: "Forest Green" },
+  "sunset-orange":{ name: "🌅 Sunset Orange", display: "Sunset Orange" }
+};
+
+function applyColorScheme(scheme) {
+  if (scheme === "wood") {
+    // Wood is default - clear the attribute to use default colors
+    document.documentElement.removeAttribute("data-color-scheme");
+  } else {
+    document.documentElement.setAttribute("data-color-scheme", scheme);
+  }
 }
 
 // ── Settings load ─────────────────────────────────────────────────────────────
 async function loadSettings() {
-  const data = await chrome.storage.local.get(["serverUrl","ollamaUrl","keys","theme"]);
+  const data = await chrome.storage.local.get(["serverUrl","ollamaUrl","keys","theme","colorScheme"]);
   if (data.serverUrl) {
     state.serverUrl = data.serverUrl;
     $("server-url-input").value = data.serverUrl;
@@ -296,10 +506,12 @@ async function loadSettings() {
   if (data.theme) {
     state.theme = data.theme;
     applyTheme(state.theme);
-  } else {
-    // Default to dark theme on first load
-    state.theme = "dark";
-    applyTheme("dark");
+  }
+  if (data.colorScheme) {
+    state.colorScheme = data.colorScheme;
+    applyColorScheme(state.colorScheme);
+    const selector = $("color-scheme-selector");
+    if (selector) selector.value = data.colorScheme;
   }
 }
 
@@ -535,19 +747,12 @@ function escHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
-function displayResults(data, isCloud, pageTitle, pageUrl, modelName) {
+function displayResults(data, isCloud, pageTitle, pageUrl, modelName, historyType) {
   resultBox.classList.add("visible");
 
   const finalText = isCloud
     ? (data.summary || "")
     : (data.final_summary || data.summary || "");
-
-  // Check if summary is empty
-  if (!finalText || !finalText.trim()) {
-    showError(errorBox, "The model returned an empty summary. This might happen if:\n• The input text is too short\n• The input is mostly noise\n• The server encountered an error\n\nTry a longer text or switch models.");
-    resultBox.classList.remove("visible");
-    return;
-  }
 
   renderStructuredSummary(
     $("structured-body"),
@@ -557,7 +762,6 @@ function displayResults(data, isCloud, pageTitle, pageUrl, modelName) {
     modelName || "model"
   );
 
-  // Breakdown sections (local combined only)
   const showBreakdown = !isCloud && data.bart_summary;
   ["bart","t5","lexrank"].forEach(m => {
     $(`section-${m}`).style.display = showBreakdown ? "block" : "none";
@@ -568,23 +772,18 @@ function displayResults(data, isCloud, pageTitle, pageUrl, modelName) {
     $("body-lexrank").textContent = data.extractive_summary || "";
   }
 
-  // Store for download
   state.lastSummaryData = {
     title: pageTitle || state.pageTitle,
     url:   pageUrl   || state.pageUrl,
     model: modelName,
     summary: finalText,
-    bart:    data.bart_summary || "",
-    t5:      data.t5_summary   || "",
-    lexrank: data.extractive_summary || "",
     date:    new Date().toISOString(),
   };
 
-  // Save to history (JSON DB)
-  saveToHistory(state.lastSummaryData);
-  
-  // Enable query mode for follow-ups
-  showQuerySection();
+  saveToHistory({
+    ...state.lastSummaryData,
+    type: historyType || "links"
+  });
 }
 
 // ── Local model ───────────────────────────────────────────────────────────────
@@ -767,57 +966,108 @@ async function callCloud(provider, text) {
   return fn(text, key);
 }
 
-// ── Summarize page ────────────────────────────────────────────────────────────
+async function fetchPageText(url) {
+  try {
+    const response = await fetch(url);
+    const html = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const article = doc.querySelector("article, main, [role='main']") || doc.body;
+    return (article.innerText || article.textContent || "").trim();
+  } catch (err) {
+    throw new Error(`Cannot fetch ${url}: ${err.message}`);
+  }
+}
+
+async function summarizeSingleUrl(url, historyType) {
+  showError(errorBox, "");
+  resultBox.classList.remove("visible");
+  setLoading(summarizeBtn, true);
+  lockForSummarization();
+
+  try {
+    const title = new URL(url).hostname;
+    const text = await fetchPageText(url);
+    if (!text) throw new Error("No text found on page");
+
+    const { provider, model } = parseModelSelect($("model-select").value);
+    let data;
+    if (provider === "local") {
+      if (!state.serverOnline) {
+        const online = await checkServer(true);
+        if (!online) throw new Error("Local server offline");
+      }
+      data = await callLocalModel(text, model);
+      displayResults(data, false, title, url, model, historyType);
+    } else {
+      data = await callCloud(provider, text);
+      displayResults(data, true, title, url, model, historyType);
+    }
+  } catch (err) {
+    showError(errorBox, err.message || "Failed to summarize URL");
+  } finally {
+    setLoading(summarizeBtn, false);
+    unlockAfterSummarization();
+  }
+}
+
+// ── Summarize ─────────────────────────────────────────────────────────────────
 summarizeBtn.addEventListener("click", async () => {
   hideError(errorBox);
   resultBox.classList.remove("visible");
 
-  if (!state.pageText && !state.manualLinks.length) {
-    showError(errorBox, "No content to summarize. Grab page content or add manual links.");
-    return;
+  let textToSummarize = manualTextInput?.value?.trim() || "";
+  let titleForDisplay = "Manual Text";
+  let urlForDisplay = "";
+  let historyType = "texts";
+
+  if (!textToSummarize) {
+    if (!state.pageText) {
+      showError(errorBox, "No content. Enter text or open a page.");
+      return;
+    }
+    textToSummarize = state.lockedPageText;
+    titleForDisplay = state.lockedPageTitle;
+    urlForDisplay = state.lockedPageUrl;
+    historyType = "links";
+
+    const additionalUrl = additionalLinkInput?.value?.trim() || "";
+    if (additionalUrl) {
+      const combine = combineLinksCheckbox?.checked;
+      if (combine) {
+        try {
+          const additionalText = await fetchPageText(additionalUrl);
+          textToSummarize += "\n\n--- Additional Source ---\n\n" + additionalText;
+        } catch (err) {
+          showError(errorBox, `Failed to fetch additional link: ${err.message}`);
+          return;
+        }
+      } else {
+        await summarizeSingleUrl(additionalUrl, "links");
+        return;
+      }
+    }
   }
 
   const { provider, model } = parseModelSelect($("model-select").value);
   setLoading(summarizeBtn, true);
   lockForSummarization();
 
-  // Use the locked text (snapshot at click time)
-  let textToSummarize = state.lockedPageText;
-  const titleForDisplay = state.lockedPageTitle;
-  const urlForDisplay   = state.lockedPageUrl;
-
   try {
-    // Fetch content from manual links if any
-    if (state.manualLinks && state.manualLinks.length > 0) {
-      hideError(errorBox);
-      const manualContent = await fetchManualLinksContent(state.manualLinks);
-      if (manualContent) {
-        // Combine current page text with manual links content
-        textToSummarize = textToSummarize 
-          ? `${textToSummarize}\n\n---\n\n${manualContent}`
-          : manualContent;
-      }
-    }
-
-    if (!textToSummarize || !textToSummarize.trim()) {
-      showError(errorBox, "No text could be extracted from the page or provided links.");
-      return;
-    }
-
     let data;
     if (provider === "local") {
       if (!state.serverOnline) {
         const online = await checkServer(true);
-        if (!online) throw new Error(
-          "Local server is offline.\nRun in summary_service folder:\n\n  uvicorn main:app --port 5001"
-        );
+        if (!online) throw new Error("Local server offline.\nRun: uvicorn main:app --port 5001");
       }
       data = await callLocalModel(textToSummarize, model);
-      displayResults(data, false, titleForDisplay, urlForDisplay, model);
+      displayResults(data, false, titleForDisplay, urlForDisplay, model, historyType);
     } else {
-      data = await callCloud(model, textToSummarize);
-      displayResults(data, true, titleForDisplay, urlForDisplay, model);
+      data = await callCloud(provider, textToSummarize);
+      displayResults(data, true, titleForDisplay, urlForDisplay, model, historyType);
     }
+    manualTextInput.value = "";
+    additionalLinkInput.value = "";
   } catch (err) {
     showError(errorBox, err.message || String(err));
   } finally {
@@ -837,33 +1087,6 @@ $("copy-structured-btn").addEventListener("click", () => {
 });
 
 // ── Download helpers ──────────────────────────────────────────────────────────
-
-// Fetch content from manual links
-async function fetchManualLinksContent(urls) {
-  if (!urls || urls.length === 0) return "";
-  
-  const results = [];
-  for (const url of urls) {
-    try {
-      showError(errorBox, `Fetching content from ${url}…`);
-      const response = await backgroundMessage({ 
-        type: "FETCH_URL_TEXT", 
-        url 
-      });
-      
-      if (response?.ok && response?.text) {
-        results.push(`[From: ${url}]\n${response.text}`);
-      } else {
-        console.warn(`Failed to fetch ${url}:`, response?.error);
-      }
-    } catch (err) {
-      console.warn(`Error fetching ${url}:`, err.message);
-    }
-  }
-  
-  return results.join("\n\n---\n\n");
-}
-
 function buildPlainText(data) {
   let out = "";
   if (data.title) out += `Title: ${data.title}\n`;
@@ -956,31 +1179,31 @@ dropZone.addEventListener("drop", e => {
 });
 fileInput.addEventListener("change", () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
 
-/**
- * Validate and set selected file for upload.
- * Supports: PDF, DOCX, TXT, JPG, PNG, GIF, BMP, WebP (Phase 3 Backend)
- * Images can be processed via client-side OCR or server-side OCR
- */
+// Paste image from clipboard
+document.addEventListener("paste", e => {
+  if (!document.querySelector(".panel.active#panel-upload")) return;
+  const items = e.clipboardData?.items || [];
+  for (let item of items) {
+    if (item.kind === "file" && item.type.startsWith("image/")) {
+      e.preventDefault();
+      const blob = item.getAsFile();
+      const file = new File([blob], `pasted-image-${Date.now()}.png`, { type: "image/png" });
+      setFile(file);
+      break;
+    }
+  }
+});
+
 function setFile(file) {
-  // Phase 3: Extended format support including BMP and WebP
-  const supportedTypes = /\.(txt|pdf|docx|jpg|jpeg|png|gif|bmp|webp)$/i;
-  if (!supportedTypes.test(file.name)) {
-    showError(uploadError, [
-      "Unsupported file format: " + file.name,
-      "",
-      "Supported formats:",
-      "• Documents: PDF, DOCX, TXT",
-      "• Images: JPG, PNG, GIF, BMP, WebP (OCR enabled)"
-    ].join("\n")); 
+  // Support both document and image formats
+  const documentFormats = /\.(txt|pdf)$/i;
+  const imageFormats = /\.(jpg|jpeg|png|gif|bmp|webp)$/i;
+  
+  if (!documentFormats.test(file.name) && !imageFormats.test(file.name)) {
+    const supported = "• Documents: .txt, .pdf\n• Images: .jpg, .png, .gif, .bmp, .webp";
+    showError(uploadError, `Unsupported format.\nSupported:\n${supported}`); 
     return;
   }
-  
-  // Detect if this is an image file (Phase 3)
-  const imageExtensions = /\.(jpg|jpeg|png|gif|bmp|webp)$/i;
-  if (imageExtensions.test(file.name)) {
-    state.fileSourceType = "image";
-  }
-  
   state.selectedFile = file;
   $("file-name-display").textContent = `${file.name}  (${(file.size/1024).toFixed(1)} KB)`;
   filePreview.classList.add("visible");
@@ -995,96 +1218,25 @@ $("remove-file-btn").addEventListener("click", () => {
   uploadResult.classList.remove("visible");
 });
 
-// ── Manual Text Input ─────────────────────────────────────────────────────────
-// Allow users to paste or type text directly for summarization (Phase 3 feature)
-$("manual-text-summarize-btn").addEventListener("click", async () => {
-  const text = $("manual-text-input").value.trim();
-  if (!text) {
-    showError(uploadError, "Please paste or type some text to summarize.");
-    return;
-  }
-
-  hideError(uploadError);
-  uploadResult.classList.remove("visible");
-  setLoading($("manual-text-summarize-btn"), true);
-
-  const { provider, model } = parseModelSelect($("upload-model-select").value);
-
-  try {
-    let summary = "";
-
-    if (provider === "local") {
-      if (!state.serverOnline) {
-        const online = await checkServer();
-        if (!online) throw new Error("Local server offline.");
-      }
-      const d = await callLocalModel(text, model);
-      summary = d.final_summary || d.summary || "";
-    } else {
-      const d = await callCloud(model, text);
-      summary = d.summary;
-    }
-
-    if (!summary || !summary.trim()) {
-      throw new Error("Model returned empty summary. Try shorter text or different model.");
-    }
-
-    // Render structured summary for upload
-    renderStructuredSummary($("upload-structured-body"), summary, "Text Input", "", model);
-    uploadResult.classList.add("visible");
-
-    state.uploadLastData = {
-      title: "Text Input", url: "", model, summary, sourceType: "text", 
-      date: new Date().toISOString()
-    };
-
-    saveToHistory(state.uploadLastData);
-
-  } catch (err) {
-    showError(uploadError, err.message || String(err));
-  } finally {
-    setLoading($("manual-text-summarize-btn"), false);
-  }
-});
-
-// ── Image Paste Support ────────────────────────────────────────────────────────
-// Allow users to paste images directly (Ctrl+V) for OCR and summarization (Phase 3)
-document.addEventListener("paste", async (e) => {
-  const items = e.clipboardData?.items;
-  if (!items) return;
-
-  for (const item of items) {
-    if (item.type.startsWith("image/")) {
-      e.preventDefault();
-      const blob = item.getAsFile();
-      if (blob) {
-        // Check if we're on the upload tab
-        if ($("panel-upload").classList.contains("active")) {
-          state.fileSourceType = "image"; // Mark as pasted image
-          setFile(blob);
-          uploadBtn.click();
-        }
-      }
-    }
-  }
-});
-
-// ── Upload with multi-format support ──────────────────────────────────────────
-// Phase 3: Supports PDF, DOCX, TXT, and Images (with OCR) via flexible backend
 uploadBtn.addEventListener("click", async () => {
   if (!state.selectedFile) return;
   hideError(uploadError);
   uploadResult.classList.remove("visible");
   setLoading(uploadBtn, true);
 
-  const { provider, model } = parseModelSelect($("upload-model-select").value);
-  const fileName = state.selectedFile.name;
+  let { provider, model } = parseModelSelect($("upload-model-select").value);
 
   try {
     let summary = "";
+    let fileName = state.selectedFile.name;
+    const isImage = /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(fileName);
+
+    // Images must use local server for processing
+    if (isImage && provider !== "local") {
+      throw new Error("Images must be processed with a local model. Please select BART, T5, or LexRank.");
+    }
 
     if (provider === "local") {
-      // Local models: Send file directly to backend for processing
       if (!state.serverOnline) {
         const online = await checkServer();
         if (!online) throw new Error("Local server offline. Run: uvicorn main:app --port 5001");
@@ -1094,46 +1246,21 @@ uploadBtn.addEventListener("click", async () => {
       form.append("file", state.selectedFile, state.selectedFile.name);
       form.append("model", model);
       
-      const r = await fetch(`${state.serverUrl}/summarize`, { method:"POST", body:form });
+      const endpoint = isImage ? `${state.serverUrl}/upload/image` : `${state.serverUrl}/upload/pdf`;
+      const r = await fetch(endpoint, { method:"POST", body:form, signal: AbortSignal.timeout(120000) });
       
-      // Parse response and extract error details
-      let responseText = "";
-      try {
-        responseText = await r.text();
-      } catch (e) { /* ignore */ }
+      if (!r.ok) throw new Error(`Server error ${r.status}: ${await r.text()}`);
+      const d = await r.json();
+      summary = d.final_summary || d.summary || d.analysis || "";
       
-      if (!r.ok) {
-        // Backend provides detailed error messages (Phase 3)
-        throw new Error(responseText.slice(0, 500) || `Server error ${r.status}`);
-      }
-      
-      try {
-        const d = JSON.parse(responseText);
-        summary = d.final_summary || d.summary || "";
-      } catch (e) {
-        throw new Error("Invalid response from server: " + e.message);
+      if (isImage && !summary) {
+        throw new Error("No text found in image. Please provide an image with readable text, or use a document file (.txt or .pdf).");
       }
     } else {
-      // Cloud models: Extract text on client before sending
-      // For images: client-side OCR via Tesseract.js
       const text = await readFileAsText(state.selectedFile);
-      
-      // Special handling for OCR results
-      if (text.includes("No readable text found")) {
-        showError(uploadError, text);
-        return;
-      }
-      
-      if (!text.trim()) {
-        throw new Error("No text could be extracted from this file.");
-      }
-      
+      if (!text.trim()) throw new Error("No content could be extracted from this file.");
       const d = await callCloud(model, text);
       summary = d.summary;
-    }
-
-    if (!summary || !summary.trim()) {
-      throw new Error("Model returned empty summary. Try a different file or model.");
     }
 
     // Render structured summary for upload
@@ -1141,18 +1268,16 @@ uploadBtn.addEventListener("click", async () => {
     uploadResult.classList.add("visible");
 
     state.uploadLastData = {
-      title: fileName, url: "", model, summary, 
-      sourceType: state.fileSourceType || "file",
-      date: new Date().toISOString()
+      title: fileName, url: "", model, summary, date: new Date().toISOString()
     };
 
-    state.fileSourceType = "file"; // Reset for next upload
-    saveToHistory(state.uploadLastData);
+    saveToHistory({
+      ...state.uploadLastData,
+      type: "uploads"
+    });
 
   } catch (err) {
-    // Display detailed error message from backend or frontend
-    const errorMsg = err.message || String(err);
-    showError(uploadError, errorMsg);
+    showError(uploadError, err.message || String(err));
   } finally {
     setLoading(uploadBtn, false);
   }
@@ -1174,41 +1299,12 @@ $("upload-download-pdf-btn").addEventListener("click", () => {
 });
 
 /**
- * Read file as plain text - supports multiple formats (Phase 3 extended)
- * 
- * Format support:
- * .txt   → FileReader (direct text reading)
- * .pdf   → PDF.js via CDN (client-side), fallback to server extraction
- * .docx  → Server-side extraction via FormData (not extracted client-side)
- * .jpg/.png/.gif/.bmp/.webp → Tesseract.js OCR (client-side text extraction)
- * 
- * Used by cloud models to extract text before sending to API.
- * Local models send original file to backend for server-side extraction.
- * 
- * Returns: extracted text string or error message
- * Throws: HTTPException with detailed error message
+ * Read file as plain text.
+ * .txt  → FileReader
+ * .pdf  → PDF.js via CDN
  */
 async function readFileAsText(file) {
-  const isImage = /\.(jpg|jpeg|png|gif)$/i.test(file.name) || file.type.startsWith("image/");
   const isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf";
-  
-  if (isImage) {
-    // Images: Try OCR extraction
-    console.log("Detected image file, attempting OCR...");
-    try {
-      return await extractImageTextOcr(file);
-    } catch (err) {
-      console.warn("OCR extraction failed:", err.message);
-      throw new Error([
-        "Could not extract text from image.",
-        "Reasons: OCR unavailable, image too complex, or no visible text.",
-        "",
-        "Try:",
-        "• Ensure the image contains clear, readable text",
-        "• Use cloud models which may have better image support"
-      ].join("\n"));
-    }
-  }
   
   if (!isPdf) {
     return new Promise((res, rej) => {
@@ -1253,45 +1349,6 @@ async function readFileAsText(file) {
     );
   }
 }
-
-/**
- * Image OCR extraction using Tesseract.js (Phase 3)
- * Extracts text from images (JPG, PNG, GIF) using client-side OCR
- * Loads Tesseract.js from CDN on first use
- * Used by cloud models when processing image files
- */
-async function extractImageTextOcr(file) {
-  // Load Tesseract.js if not already loaded
-  if (!window.Tesseract) {
-    console.log("Loading Tesseract.js for OCR...");
-    await new Promise((res, rej) => {
-      const script = document.createElement("script");
-      script.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
-      script.onload = res;
-      script.onerror = () => rej(new Error("Failed to load Tesseract.js"));
-      document.head.appendChild(script);
-    });
-  }
-
-  const buffer = await new Promise((res, rej) => {
-    const reader = new FileReader();
-    reader.onload = e => res(e.target.result);
-    reader.onerror = () => rej(new Error("Could not read image"));
-    reader.readAsDataURL(file);
-  });
-
-  try {
-    const result = await window.Tesseract.recognize(buffer, "eng");
-    const text = result.data.text.trim();
-    if (!text) {
-      throw new Error("No text detected in image");
-    }
-    return text;
-  } catch (err) {
-    throw new Error("OCR failed: " + (err.message || String(err)));
-  }
-}
-
 
 // Load PDF.js from CDN
 async function loadPdfJs() {
@@ -1350,74 +1407,98 @@ async function extractPdfServerSide(file) {
   const formData = new FormData();
   formData.append("file", file);
   
-  const response = await fetch(`${state.serverUrl}/upload/pdf/extract`, {
-    method: "POST",
-    body: formData,
-    signal: AbortSignal.timeout(120000) // 2 min timeout
-  });
+  try {
+    // Use dedicated /extract/pdf endpoint (just extraction, no summarization)
+    const response = await fetch(`${state.serverUrl}/extract/pdf`, {
+      method: "POST",
+      body: formData,
+      signal: AbortSignal.timeout(30000) // 30 sec for extraction only
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "");
-    throw new Error(errorText.slice(0, 200) || `Server error: ${response.status}`);
-  }
-
-  const result = await response.json();
-  
-  // Return extracted text
-  if (result.text && result.text.trim()) {
-    return result.text;
-  }
-  
-  throw new Error("Server returned no text from PDF");
-}
-
-// ── JSON DB / History ─────────────────────────────────────────────────────────
-async function loadHistory() {
-  const data = await chrome.storage.local.get(["summaryHistory"]);
-  return Array.isArray(data.summaryHistory) ? data.summaryHistory : [];
-}
-
-async function saveToHistory(entry) {
-  const history = await loadHistory();
-  // Ensure sourceType is set (default to "link" for backward compatibility)
-  if (!entry.sourceType) {
-    if (entry.url && entry.url.trim()) {
-      entry.sourceType = "link";
-    } else {
-      entry.sourceType = "file"; // fallback
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(errorText.slice(0, 200) || `Server error: ${response.status}`);
     }
+
+    const result = await response.json();
+    
+    // Return extracted text
+    if (result.text && result.text.trim()) {
+      return result.text;
+    }
+    
+    throw new Error("Server returned no text from PDF");
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("PDF extraction timeout (server-side took too long)");
+    }
+    throw err;
   }
-  // Add to front, keep last 50
-  history.unshift({ ...entry, id: Date.now() });
-  const trimmed = history.slice(0, 50);
-  await chrome.storage.local.set({ summaryHistory: trimmed });
-  // Re-render with current filter
-  const filtered = state.historyCategory === "all" 
-    ? trimmed 
-    : trimmed.filter(h => (h.sourceType || "link") === state.historyCategory);
-  renderHistory(filtered);
 }
 
-function renderHistory(items) {
-  const list = $("history-list");
+// ── History Management ────────────────────────────────────────────────────────
+async function saveToHistory(entry) {
+  const type = entry.type || "links";
+  const { title, url, model, summary, date } = entry;
+  await historyManager.addEntry(type, { title, url, model, summary });
+}
+
+async function renderHistoryByType(type) {
+  const items = await historyManager.getHistory(type);
   if (!items || items.length === 0) {
-    list.innerHTML = `<div style="text-align:center;color:var(--text-muted);font-size:12px;padding:20px 0">No history yet</div>`;
+    historyList.innerHTML = `<div style="text-align:center;color:var(--text-muted);font-size:12px;padding:20px 0">No ${type} history</div>`;
     return;
   }
-  list.innerHTML = items.map(item => {
-    const date = item.date ? new Date(item.date).toLocaleString() : "";
-    const sourceType = item.sourceType || "link";
-    const sourceLabel = {
-      "link": "🔗 Link",
-      "file": "📄 File",
-      "text": "✎ Text",
-      "image": "🖼️ Image"
-    }[sourceType] || "Link";
-    return `<div class="history-item" data-id="${item.id}" data-source="${sourceType}">
-      <div class="history-item-title">${escHtml(item.title || "Untitled")}</div>
-      <div class="history-item-meta">${sourceLabel} · ${escHtml(item.model || "")} · ${escHtml(date)}</div>
+
+  historyList.innerHTML = items.map(item => {
+    const preview = (item.summary || item.text_preview || "").slice(0, 60);
+    return `<div class="history-item" data-id="${item.id}">
+      <div class="history-item-title">${escHtml(item.title || item.url || "Summary")}</div>
+      <div class="history-item-meta">${escHtml(item.model || "")} · ${escHtml(item.date || "")}</div>
+      <div class="history-item-preview">${escHtml(preview)}...</div>
+      <div class="history-item-actions">
+        <button class="btn btn-ghost" onclick="copyToClipboard('${item.id}')">Copy</button>
+        <button class="btn btn-soft-red" onclick="deleteHistoryItem('${item.id}','${type}')">Delete</button>
+      </div>
     </div>`;
   }).join("");
+}
+
+async function deleteHistoryItem(id, type) {
+  await historyManager.deleteEntry(type, id);
+  await renderHistoryByType(type);
+}
+
+async function copyToClipboard(id) {
+  const type = document.querySelector(".history-tab.active").dataset.type;
+  const items = await historyManager.getHistory(type);
+  const item = items.find(i => i.id === id);
+  if (item && navigator.clipboard) {
+    await navigator.clipboard.writeText(item.summary || item.text_preview || "");
+    alert("Copied!");
+  }
+}
+
+// ── Initialize on page load ───────────────────────────────────────────────────
+(async () => {
+  await loadSettings();
+  await checkServer(true);
+  grabPageContent();
+  setInterval(() => checkServer(true), 30000);
+  await renderHistoryByType("links");
+})();
+  await renderHistoryByType(type);
+}
+
+async function copyToClipboard(id) {
+  const type = document.querySelector(".history-tab.active").dataset.type;
+  const items = await historyManager.getHistory(type);
+  const item = items.find(i => i.id === id);
+  if (item && navigator.clipboard) {
+    await navigator.clipboard.writeText(item.summary || item.text_preview || "");
+    alert("Copied!");
+  }
+}
 
   // Click to restore a history entry
   list.querySelectorAll(".history-item").forEach(el => {
@@ -1499,35 +1580,24 @@ $("clear-keys-btn").addEventListener("click", async () => {
   });
 });
 
-$("refresh-btn").addEventListener("click", async () => {
-  if (!state.isSummarizing) {
-    await grabPageContent();
-    // Also refresh manual links if any exist
-    if (state.manualLinks && state.manualLinks.length > 0) {
-      try {
-        await fetchManualLinksContent(state.manualLinks);
-        hideError(errorBox); // Clear errors on successful refresh
-      } catch (err) {
-        // Silently fail, as manual links are optional
-        console.warn("Manual links refresh failed:", err.message);
-      }
-    }
-  }
+// ── Color Scheme Selector ─────────────────────────────────────────────────────
+const colorSchemeSelector = $("color-scheme-selector");
+if (colorSchemeSelector) {
+  colorSchemeSelector.addEventListener("change", async (e) => {
+    const scheme = e.target.value;
+    state.colorScheme = scheme;
+    applyColorScheme(scheme);
+    await chrome.storage.local.set({ colorScheme: scheme });
+  });
+}
+
+$("refresh-btn").addEventListener("click", () => {
+  if (!state.isSummarizing) grabPageContent();
 });
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 (async () => {
   await loadSettings();
-  
-  // Mark "all" history tab as active initially
-  document.querySelectorAll(".history-tab").forEach(btn => {
-    if (btn.dataset.category === "all") {
-      btn.classList.add("active");
-    } else {
-      btn.classList.remove("active");
-    }
-  });
-  
   const history = await loadHistory();
   renderHistory(history);
   await Promise.all([checkServer(), grabPageContent()]);
