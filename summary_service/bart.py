@@ -1,19 +1,36 @@
-from transformers import pipeline, logging
+from transformers import BartForConditionalGeneration, BartTokenizer, logging
 import torch
 import warnings
 import re
+import time
+from datetime import datetime
 
+# Suppress warnings from transformers and tokenizers
 warnings.filterwarnings("ignore")
 logging.set_verbosity_error()
 
-device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-summarizer = pipeline("summarization", model="facebook/bart-large-cnn", device=device)
+# ── Logging Utilities ──────────────────────────────────────────────────────────
+def log_batch(stage: str, batch_info: dict):
+    """Log batch processing information to terminal."""
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    info_str = " | ".join([f"{k}: {v}" for k, v in batch_info.items()])
+    print(f"[{timestamp}] [BART] {stage}: {info_str}")
 
-# BART-large-cnn token limit is 1024 tokens (optimized: ~550 words, practical sweet spot)
-BART_MAX_WORDS = 550
+# Initialize BART with GPU support if available
+device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+model_name = "facebook/bart-large-cnn"
+tokenizer = BartTokenizer.from_pretrained(model_name)
+model = BartForConditionalGeneration.from_pretrained(model_name).to(device)
+# Enable fp16 (half-precision) for faster inference on CUDA
+if torch.cuda.is_available():
+    model = model.half()
+model.eval()
+
+# BART-large-cnn token limit is 1024 tokens (optimized: ~650 words for faster batch processing)
+BART_MAX_WORDS = 650
 BART_MIN_WORDS = 30
 BART_MIN_SUMMARY = 20
-BART_MAX_SUMMARY = 95
+BART_MAX_SUMMARY = 110  # Increased from 95 for better summary quality with greedy decoding
 
 def _split_sentences(text: str) -> list[str]:
     """Split text into sentences for better chunking."""
@@ -77,50 +94,41 @@ def _chunk_text(text: str, max_words: int = BART_MAX_WORDS) -> list[str]:
 def _calculate_summary_lengths(text_words: int) -> tuple[int, int]:
     """
     Calculate optimal min and max summary lengths.
-    Preserves more detail for long-form content (novels, articles).
+    Preserves 40-55% of content for better information retention.
     """
-    # Very short text - minimal reduction
+    # Very short text - keep 60-75% of content
     if text_words < 50:
-        min_len = max(10, text_words // 8)
-        max_len = max(min_len + 15, text_words // 2.5)
+        min_len = max(15, int(text_words * 0.60))
+        max_len = max(min_len + 15, int(text_words * 0.75))
     
-    # Short text
+    # Short text - keep 50-65% of content
     elif text_words < 150:
-        min_len = max(15, text_words // 10)
-        max_len = max(min_len + 18, text_words // 2.2)
+        min_len = max(20, int(text_words * 0.50))
+        max_len = max(min_len + 18, int(text_words * 0.65))
     
-    # Medium text  
+    # Medium text - keep 45-60% of content
     elif text_words < 350:
-        min_len = max(20, text_words // 12)
-        max_len = max(min_len + 25, text_words // 2)
+        min_len = max(30, int(text_words * 0.45))
+        max_len = max(min_len + 25, int(text_words * 0.60))
     
-    # Long text (550 word chunks for novels/articles)
+    # Long text (550 word chunks) - keep 40-55% of content
     else:
-        min_len = max(30, min(50, text_words // 18))
-        max_len = max(min_len + 35, min(165, int(text_words * 0.45)))  # 45% retention
+        min_len = max(40, int(text_words * 0.40))
+        max_len = max(min_len + 35, min(180, int(text_words * 0.55)))
     
     # Safety checks
     if max_len <= min_len:
-        max_len = min_len + 40
+        max_len = min_len + 35
     
-    min_len = max(3, min(100, min_len))
-    max_len = max(min_len + 1, min(190, max_len))
-    
-    return min_len, max_len
-    
-    # Ensure minimum gap to prevent model errors
-    if max_len <= min_len:
-        max_len = min_len + 30
-    
-    # Hard limits to prevent model crash
-    min_len = max(3, min(100, min_len))
-    max_len = max(min_len + 1, min(190, max_len))
+    min_len = max(10, min(120, min_len))
+    max_len = max(min_len + 1, min(200, max_len))
     
     return min_len, max_len
 
 def _safe_summarize(text: str, reduction_ratio: float = 0.5) -> str:
     """
     Safely summarize text with intelligent parameter selection and error recovery.
+    Uses direct model API instead of pipeline for better compatibility.
     
     Args:
         text: Input text to summarize
@@ -147,20 +155,35 @@ def _safe_summarize(text: str, reduction_ratio: float = 0.5) -> str:
         assert min_len >= 1, f"min_len too small: {min_len}"
         assert max_len <= 200, f"max_len too large: {max_len}"
         
-        result = summarizer(
-            text,
-            max_length=max_len,
-            min_length=min_len,
-            do_sample=False,
-            truncation=True,
-        )
+        # Tokenize input
+        inputs = tokenizer.encode(text, return_tensors="pt", max_length=1024, truncation=True).to(device)
         
-        if not result:
+        # Generate summary using greedy decoding with temperature for speed and accuracy
+        with torch.no_grad():
+            summary_ids = model.generate(
+                inputs,
+                max_length=max_len,
+                min_length=min_len,
+                num_beams=1,  # Greedy decoding: 4-8x faster than beam search
+                early_stopping=True,
+                do_sample=True,  # Enable sampling for better diversity
+                temperature=0.7,  # Controlled randomness for accuracy
+                top_k=50,  # Reduce vocabulary for faster selection
+                top_p=0.95,  # Nucleus sampling for quality
+                length_penalty=2.0  # Encourage longer summaries
+            )
+            # Clear GPU cache to prevent memory buildup
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        
+        # Decode summary
+        summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+        
+        if not summary or summary.strip() == "":
             print(f"[BART] Model returned empty result, returning truncated text")
             words = text.split()
             return " ".join(words[:max(20, len(words) // 3)])
         
-        summary = result[0]["summary_text"]
         summary_words = len(summary.split())
         print(f"[BART] Result: {summary_words} words (reduction: {summary_words/text_words*100:.1f}%)")
         
@@ -171,11 +194,6 @@ def _safe_summarize(text: str, reduction_ratio: float = 0.5) -> str:
         # Return first 1/3 of text as fallback
         words = text.split()
         return " ".join(words[:max(20, len(words) // 3)])
-    
-    except IndexError as e:
-        print(f"[BART] IndexError (token mismatch): {e}")
-        # Model tokenizer produced fewer tokens than expected - return original text
-        return text
     
     except Exception as e:
         print(f"[BART] Error during summarization: {type(e).__name__}: {e}")
@@ -195,57 +213,77 @@ def bart_summary(text: str) -> str:
     if not text or not text.strip():
         return "No content to summarize."
 
+    start_time = time.time()
     text = text.strip()
     words = text.split()
     input_length = len(words)
 
-    print(f"[BART] Starting summarization: {input_length} words")
+    log_batch("INIT", {"words": input_length, "chars": len(text)})
 
     # Too short to summarize
     if input_length < BART_MIN_WORDS:
-        print(f"[BART] Text too short ({input_length} < {BART_MIN_WORDS}), returning as-is")
+        log_batch("SKIP", {"reason": "text_too_short", "words": input_length, "min_required": BART_MIN_WORDS})
         return text
 
     # Single pass: text fits in one chunk
     if input_length <= BART_MAX_WORDS:
-        print(f"[BART] Single pass (fits in {BART_MAX_WORDS} words)")
-        return _safe_summarize(text)
+        log_batch("MODE", {"type": "single_pass", "words": input_length, "chunk_size": BART_MAX_WORDS})
+        result = _safe_summarize(text)
+        elapsed = time.time() - start_time
+        output_words = len(result.split())
+        log_batch("COMPLETE", {"input": input_length, "output": output_words, "reduction": f"{(1-output_words/input_length)*100:.1f}%", "time": f"{elapsed:.2f}s"})
+        return result
 
     # Multi-pass: chunk, summarize each, then combine
-    print(f"[BART] Multi-pass: chunking text (chunk size: {BART_MAX_WORDS})")
+    log_batch("MODE", {"type": "multi_pass", "chunk_size": BART_MAX_WORDS})
     chunks = _chunk_text(text, BART_MAX_WORDS)
-    print(f"[BART] Created {len(chunks)} chunks")
+    log_batch("CHUNKING", {"total_chunks": len(chunks), "chunk_size": BART_MAX_WORDS})
     
     chunk_summaries = []
+    chunk_stats = []
+    
     for i, chunk in enumerate(chunks):
         chunk_words = len(chunk.split())
-        print(f"[BART] Processing chunk {i+1}/{len(chunks)} ({chunk_words} words)")
+        chunk_progress = f"{i+1}/{len(chunks)}"
+        log_batch(f"BATCH_{chunk_progress}", {"chunk_words": chunk_words, "status": "processing"})
         
         # Skip tiny chunks
         if chunk_words < 20:
-            print(f"[BART] Chunk {i+1} too small, keeping first sentence")
-            # Take first sentence only
+            log_batch(f"BATCH_{chunk_progress}", {"chunk_words": chunk_words, "status": "skipped_small"})
             sentences = _split_sentences(chunk)
             chunk_summaries.append(sentences[0] if sentences else chunk[:100])
+            chunk_stats.append({"chunk": i+1, "input": chunk_words, "output": len((sentences[0] if sentences else chunk[:100]).split()), "type": "small_kept_as_is"})
             continue
         
         summary = _safe_summarize(chunk)
+        summary_words = len(summary.split())
+        log_batch(f"BATCH_{chunk_progress}", {"chunk_words": chunk_words, "summary_words": summary_words, "status": "completed"})
         chunk_summaries.append(summary)
+        chunk_stats.append({"chunk": i+1, "input": chunk_words, "output": summary_words})
 
     if not chunk_summaries:
-        print("[BART] No summaries generated")
+        log_batch("ERROR", {"stage": "chunk_summarization", "reason": "no_summaries"})
         return "Could not generate a summary from the provided text."
 
     # Combine summaries
     combined = " ".join(chunk_summaries)
     combined_words = len(combined.split())
-    print(f"[BART] Combined summaries: {combined_words} words from {len(chunk_summaries)} chunks")
+    log_batch("COMBINE", {"total_summaries": len(chunk_summaries), "combined_words": combined_words})
+
+    # Minimal logging for speed (skip expensive table printing)
+    total_input = sum(s["input"] for s in chunk_stats)
+    total_output = sum(s["output"] for s in chunk_stats)
+    avg_reduction = f"{(1 - total_output/total_input)*100:.1f}%" if total_input > 0 else "N/A"
+    log_batch("STATS", {"total_input": total_input, "total_output": total_output, "avg_reduction": avg_reduction})
 
     # Final pass if combined text is still reasonable
     if combined_words <= BART_MAX_WORDS:
-        print("[BART] Final summarization pass")
+        log_batch("FINAL", {"status": "single_pass", "words": combined_words})
         final_summary = _safe_summarize(combined)
-        print(f"[BART] Final result: {len(final_summary.split())} words")
+        final_words = len(final_summary.split())
+        elapsed = time.time() - start_time
+        overall_reduction = f"{(1 - final_words/input_length)*100:.1f}%"
+        log_batch("COMPLETE", {"input": input_length, "output": final_words, "overall_reduction": overall_reduction, "time": f"{elapsed:.2f}s"})
         return final_summary
     else:
         # Already reasonably summarized, just truncate if needed

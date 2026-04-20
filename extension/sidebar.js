@@ -29,6 +29,8 @@ const state = {
   queryMode: false,          // for query interaction
   historyCategory: "all",    // filter history: "all", "link", "file", "text"
   fileSourceType: "file",    // track if file came from paste or upload: "file", "image"
+  detectedLlamaModel: null,  // Detected Llama model (llama3.2, llama3, etc.)
+  lastLlamaDetectionTime: 0, // Prevent excessive detection calls
 };
 
 const $ = id => document.getElementById(id);
@@ -323,6 +325,10 @@ async function checkServer(silent = false) {
       serverDot.className = "status-dot ok";
       serverText.textContent = "Local server online";
       state.serverOnline = true;
+      
+      // Auto-detect Llama model when server comes online (with built-in 30-second cache)
+      detectLlamaModel().catch(err => console.warn("Could not pre-detect Llama model:", err.message));
+      
       return true;
     }
   } catch (_) {}
@@ -402,6 +408,47 @@ function unlockAfterSummarization() {
 function parseModelSelect(value) {
   const [provider, model] = value.split(":");
   return { provider, model };
+}
+
+// ── Llama Model Detection ──────────────────────────────────────────────────────
+
+async function detectLlamaModel() {
+  /**
+   * Detect which Llama model is installed & running.
+   * Returns: "llama3.2", "llama3", or null
+   * Uses caching to prevent excessive requests (cache valid for 30 seconds)
+   */
+  const now = Date.now();
+  const CACHE_DURATION = 30000; // 30 seconds
+  
+  // Return cached result if still valid
+  if (state.detectedLlamaModel && (now - state.lastLlamaDetectionTime) < CACHE_DURATION) {
+    return state.detectedLlamaModel;
+  }
+  
+  try {
+    // Try to detect from backend
+    const response = await fetch(`${state.serverUrl}/llama/detect`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data?.status === "connected" && data?.recommended) {
+        state.detectedLlamaModel = data.recommended;
+        state.lastLlamaDetectionTime = now;
+        console.log(`✓ Detected Llama model: ${data.recommended}`);
+        return data.recommended;
+      }
+    }
+  } catch (err) {
+    console.warn("Llama detection failed, will use fallback:", err.message);
+  }
+  
+  // Fallback: return null, and let callOllama use default
+  state.detectedLlamaModel = null;
+  return null;
 }
 
 function backgroundMessage(payload) {
@@ -710,16 +757,20 @@ async function callAnthropic(text, key) {
 }
 
 async function callOllama(text) {
+  // Detect which model to use (llama3.2, llama3, etc.)
+  const detectedModel = await detectLlamaModel();
+  const model = detectedModel || "llama3.2"; // Fallback to llama3.2 if detection fails
+  
   const baseUrl = state.ollamaUrl.replace(/\/$/, "");
   const data = await fetchOllamaViaBackground(`${baseUrl}/api/generate`, {
     method:"POST",
     headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ model:"llama3.2", prompt:PROMPT(text), stream:false }),
+    body: JSON.stringify({ model: model, prompt:PROMPT(text), stream:false }),
   });
   if (!data?.response) {
-    throw new Error("Ollama: No response. Run `ollama pull llama3.2`.");
+    throw new Error(`Ollama (${model}): No response. Run 'ollama pull ${model}'.`);
   }
-  return { summary: data.response, model_used: "llama3.2" };
+  return { summary: data.response, model_used: model };
 }
 
 async function callMistral(text, key) {
@@ -1474,16 +1525,41 @@ $("test-ollama-btn").addEventListener("click", async () => {
   state.ollamaUrl = url;
   await chrome.storage.local.set({ ollamaUrl: url });
   try {
-    const baseUrl = state.ollamaUrl.replace(/\/$/, "");
+    // Try the new Llama detection endpoint first
+    try {
+      const detectionResponse = await fetch(`${state.serverUrl}/llama/detect`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+      
+      if (detectionResponse.ok) {
+        const detectionData = await detectionResponse.json();
+        if (detectionData?.status === "connected" && detectionData?.available?.length > 0) {
+          const models = detectionData.available.join(", ");
+          const recommended = detectionData.recommended;
+          state.detectedLlamaModel = recommended;
+          state.lastLlamaDetectionTime = Date.now();
+          alert(`✓ Ollama reachable\n\nAvailable models: ${models}\nRecommended: ${recommended}`);
+          return;
+        }
+      }
+    } catch (detectionErr) {
+      console.log("Detection endpoint not available, falling back to direct check:", detectionErr.message);
+    }
+    
+    // Fallback: Direct Ollama check (original behavior)
+    const baseUrl = url.replace(/\/$/, "");
     const data = await fetchOllamaViaBackground(`${baseUrl}/api/tags`, { method:"GET" });
-    const hasLlama = Array.isArray(data?.models) &&
-      data.models.some(m => m?.name?.startsWith("llama3.2"));
-    alert(hasLlama
-      ? "✓ Ollama reachable and llama3.2 installed."
-      : "Ollama reachable, but llama3.2 not found. Run: ollama pull llama3.2"
-    );
+    const hasLlama = Array.isArray(data?.models) && data.models.length > 0;
+    const modelsList = data?.models?.map(m => m?.name)?.join(", ") || "unknown";
+    
+    if (hasLlama) {
+      alert(`✓ Ollama reachable\n\nInstalled models:\n${modelsList}`);
+    } else {
+      alert("Ollama reachable, but no models found.\n\nInstall a model:\n• ollama pull llama3.2\n• ollama pull llama3");
+    }
   } catch (err) {
-    alert(err?.message || String(err));
+    alert(`❌ Error: ${err?.message || String(err)}`);
   }
 });
 
@@ -1531,7 +1607,12 @@ $("refresh-btn").addEventListener("click", async () => {
   const history = await loadHistory();
   renderHistory(history);
   await Promise.all([checkServer(), grabPageContent()]);
-  setInterval(checkServer, 30_000);
-  // Auto-refresh page content every 3 seconds when not summarizing
-  setInterval(() => { if (!state.isSummarizing) grabPageContent(); }, 3000);
+  
+  // Periodic health checks: reduced to 5 minutes (300,000 ms) instead of 30 seconds
+  // This prevents excessive /health and /llama/detect polling
+  setInterval(checkServer, 300_000);
+  
+  // Page content refresh: reduced from 3 seconds to 10 seconds, only when not summarizing
+  // This prevents excessive polling of page content
+  setInterval(() => { if (!state.isSummarizing) grabPageContent(); }, 10_000);
 })();

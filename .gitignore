@@ -60,3 +60,7 @@ Thumbs.db
 
 # Keep existing project-specific ignore
 public/
+
+# AI Documentation and Working notes (not part of version control)
+AI_docs/
+project_memory/

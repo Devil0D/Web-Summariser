@@ -13,11 +13,15 @@ import warnings
 import io
 import os
 import shutil
+import time
 
 # Core summarization models
 from bart import bart_summary
 from T5 import t5_summary
 from extractive_summary import extractive_summary
+
+# Llama model detector
+from llama_detector import detect_llama_models, get_system_prompt, validate_model
 
 # File extraction modules
 import pypdf
@@ -290,6 +294,59 @@ def list_models():
     }
 
 
+# ── Llama Model Detection Routes ──────────────────────────────────────────────
+
+@app.get("/llama/detect")
+def detect_llama():
+    """
+    Detect which Llama models are available via Ollama.
+    Returns available models and the recommended one to use.
+    """
+    result = detect_llama_models()
+    return result
+
+
+@app.get("/llama/models")
+def get_llama_models():
+    """Get list of available Llama models."""
+    result = detect_llama_models()
+    return {
+        "available_models": result.get("available", []),
+        "recommended_model": result.get("recommended"),
+        "status": result.get("status"),
+        "error": result.get("error")
+    }
+
+
+@app.get("/llama/system-prompt/{model_name}")
+def get_llama_system_prompt(model_name: str):
+    """Get the optimized system prompt for a specific Llama model."""
+    prompt = get_system_prompt(model_name)
+    return {
+        "model": model_name,
+        "system_prompt": prompt,
+        "available_models": ["llama3.2", "llama3"]
+    }
+
+
+@app.get("/llama/validate")
+def validate_llama_model(model: str = "llama3.2"):
+    """
+    Validate if a specific Llama model exists and is installed.
+    
+    Query parameter:
+    - model: "llama3.2" (default) or "llama3"
+    """
+    model = model.lower()
+    is_valid = validate_model(model)
+    
+    return {
+        "model": model,
+        "is_available": is_valid,
+        "detection_info": detect_llama_models()
+    }
+
+
 # ── Core Summarization Routes ─────────────────────────────────────────────────
 
 class TextSummarizeRequest(BaseModel):
@@ -346,24 +403,28 @@ async def summarize(
     
     extracted_text = ""
     source = "none"
+    request_id = int(time.time() * 1000) % 100000  # Simple request ID
     
     # Extract text from file if provided
     if file and file.filename:
         try:
-            logger.info(f"Processing file: {file.filename}")
+            logger.info(f"[REQ#{request_id}] Processing file: {file.filename}")
             file_data = await file.read()
             extracted_text = extract_text_from_file(file.filename, file.content_type or "", file_data)
             source = "file"
+            file_size_kb = len(file_data) / 1024
+            logger.info(f"[REQ#{request_id}] File extracted: {file_size_kb:.1f}KB → {len(extracted_text)} chars")
         except ValueError as e:
             raise HTTPException(400, str(e))
         except Exception as e:
-            logger.error(f"File processing failed: {e}")
+            logger.error(f"[REQ#{request_id}] File processing failed: {e}")
             raise HTTPException(500, f"Could not process file: {str(e)}")
     
     # Use direct text if no file
     elif text.strip():
         extracted_text = text
         source = "text"
+        logger.info(f"[REQ#{request_id}] Text input: {len(text)} chars, {len(text.split())} words")
     
     # Validate that we have content
     if not extracted_text.strip():
@@ -371,15 +432,23 @@ async def summarize(
     
     # Truncate and process
     extracted_text = truncate_text(extracted_text.strip())
+    text_words = len(extracted_text.split())
     
     try:
-        logger.info(f"Summarizing {len(extracted_text)} chars from {source} using {model}")
+        logger.info(f"[REQ#{request_id}] START: Summarizing {len(extracted_text)} chars ({text_words} words) from {source} using {model}")
         
+        start_time = time.time()
         # Get main summary with chosen model
         summary = summarize_text(extracted_text, model=model)
+        elapsed = time.time() - start_time
+        
+        summary_words = len(summary.split())
+        reduction = (1 - summary_words/text_words) * 100 if text_words > 0 else 0
         
         # Also get extractive summary for comparison in combined mode
         extractive = extractive_summary(extracted_text)
+        
+        logger.info(f"[REQ#{request_id}] DONE: {text_words}→{summary_words} words ({reduction:.1f}% reduction) in {elapsed:.2f}s")
         
         return {
             "status": "success",
@@ -390,7 +459,7 @@ async def summarize(
             **format_summary(summary)
         }
     except Exception as e:
-        logger.error(f"Summarization failed: {e}")
+        logger.error(f"[REQ#{request_id}] Failed: {e}")
         raise HTTPException(500, f"Failed to generate summary: {str(e)}")
 
 

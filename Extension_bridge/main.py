@@ -29,6 +29,15 @@ from bart import bart_summary
 from T5 import t5_summary
 from extractive_summary import extractive_summary
 
+# Llama model detector (from summary_service)
+try:
+    from llama_detector import detect_llama_models, get_system_prompt, validate_model
+except ImportError:
+    # Fallback if not in same directory
+    import sys
+    sys.path.insert(0, '../summary_service')
+    from llama_detector import detect_llama_models, get_system_prompt, validate_model
+
 # ── app ───────────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="Websears Summary Service",
@@ -98,6 +107,59 @@ def list_models():
             {"id": "t5",        "name": "T5",                "type": "abstractive", "local": True},
             {"id": "lexrank",   "name": "LexRank",           "type": "extractive",  "local": True},
         ]
+    }
+
+
+# ── Llama Model Detection Routes ──────────────────────────────────────────────
+
+@app.get("/llama/detect")
+def detect_llama():
+    """
+    Detect which Llama models are available via Ollama.
+    Returns available models and the recommended one to use.
+    """
+    result = detect_llama_models()
+    return result
+
+
+@app.get("/llama/models")
+def get_llama_models():
+    """Get list of available Llama models."""
+    result = detect_llama_models()
+    return {
+        "available_models": result.get("available", []),
+        "recommended_model": result.get("recommended"),
+        "status": result.get("status"),
+        "error": result.get("error")
+    }
+
+
+@app.get("/llama/system-prompt/{model_name}")
+def get_llama_system_prompt(model_name: str):
+    """Get the optimized system prompt for a specific Llama model."""
+    prompt = get_system_prompt(model_name)
+    return {
+        "model": model_name,
+        "system_prompt": prompt,
+        "available_models": ["llama3.2", "llama3"]
+    }
+
+
+@app.get("/llama/validate")
+def validate_llama_model(model: str = "llama3.2"):
+    """
+    Validate if a specific Llama model exists and is installed.
+    
+    Query parameter:
+    - model: "llama3.2" (default) or "llama3"
+    """
+    model = model.lower()
+    is_valid = validate_model(model)
+    
+    return {
+        "model": model,
+        "is_available": is_valid,
+        "detection_info": detect_llama_models()
     }
 
 
