@@ -585,13 +585,6 @@ If you use Web-Summariser in your research or project, please cite it as:
 }
 ```
 
-## Support & Community
-
-- **Issues**: [Report bugs](https://github.com/yourusername/Web-Summariser/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/Web-Summariser/discussions)
-- **Documentation**: See `AI_docs/` folder
-- **Email**: your.email@example.com
-
 ## Acknowledgments
 
 - **Hugging Face** - Pre-trained models (BART, T5)
